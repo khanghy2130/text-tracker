@@ -6,10 +6,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/p5.js"></script>
     <link rel="stylesheet" type="text/css" href="./style.css">
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
   </head>
   <body>
     <div id="canvas-program-container"></div>
+
+    <p id="wait-message" hidden>Please wait ...</p>
 
     <div id="main-buttons-container">
       <button id="btn-preview">Preview</button>
@@ -17,7 +20,7 @@
     </div>
 
     <div id="options-container">
-        <div>
+        <div id="text-area-container">
           <textarea id="text-area">Your text here</textarea>
         </div>
 

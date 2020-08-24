@@ -1,6 +1,9 @@
 // HTML Elements
 let previewButton;
 let generateButton;
+
+let waitMessage;
+
 let textArea;
 let textSizeSlider;
 let bgColorPicker;
@@ -10,7 +13,7 @@ let ratioDropdown;
 
 let program = {
     UNIQUE_ID : Date.now(),
-    status: "idle", // idle, playing, generating
+    status: "idle", // idle, playing, generating, waiting
     y: 0,
     textRectHeight: 0,
 
@@ -41,6 +44,7 @@ const sketch = (p) => {
 
     function startGenerating(){
         if (program.status === "playing") previewClicked(); // exist preview
+        waitMessage.hidden = false;
         setOptionsVisibility(false);
         setButtonsVisibility(false);
         program.status = "generating";
@@ -49,11 +53,14 @@ const sketch = (p) => {
     }
 
     function sendData(){
-        console.log(program.framesData);
+        program.status = "waiting";
+
+        console.log(program.framesData.length);
         stopGenerating(true);
     }
 
     function stopGenerating(success){
+        waitMessage.hidden = true;
         setOptionsVisibility(true);
         setButtonsVisibility(true);
         program.status = "idle";
@@ -80,6 +87,9 @@ const sketch = (p) => {
         // get html elements
         previewButton = document.getElementById("btn-preview");
         generateButton = document.getElementById("btn-generate");
+
+        waitMessage = document.getElementById("wait-message");
+
         textArea = document.getElementById("text-area");
         textSizeSlider = document.getElementById("text-size-slider");
         bgColorPicker = document.getElementById("bg-color-picker");
