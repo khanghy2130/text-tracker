@@ -1,0 +1,1 @@
+git checkout - && git merge dev && git push origin master && git checkout -
