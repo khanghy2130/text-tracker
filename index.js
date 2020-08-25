@@ -11,7 +11,7 @@ app.use(express.static(__dirname + '/public'));
 app.use(express.json({limit: '10mb'}));
 
 app.get('/', function (req, res) {
-    res.sendFile(path.join(__dirname + '/home.html'));
+    res.sendFile(path.join(__dirname + '/public/home.html'));
 });
 
 app.get('/download/:id', function (req, res) {
