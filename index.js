@@ -8,7 +8,7 @@ const app = express()
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(__dirname + '/public'));
-app.use(express.json({limit: '10mb'}));
+app.use(express.json({limit: '15mb'}));
 
 app.get('/', function (req, res) {
     res.sendFile(path.join(__dirname + '/public/home.html'));
@@ -51,24 +51,27 @@ function generateVideo(body, res) {
         base64Img.imgSync(frameData, __dirname + '/images', 'frame' + index);
     });
 
-
-    let secondsToShowEachImage = 0.02
     let finalVideoPath = `./result/v_${body.id}.mp4`
 
     // setup videoshow options
     let videoOptions = {
-        loop: secondsToShowEachImage,
         fps: 30,
         transition: false,
-        videoBitrate: 1024,
+        videoBitrate: 2048,
         videoCodec: 'libx264',
         size: '640x?',
         outputOptions: ['-pix_fmt yuv420p'],
         format: 'mp4'
     }
 
+    function getTimeImage(index){
+        if (index === 0 || index === body.frames.length - 1) return 1.7; // wait time
+        else return 1/15; // frame time
+    }
     // array of images
-    let images = body.frames.map((frameData, index) => ({path: `./images/frame${index}.png`}));
+    let images = body.frames.map(
+        (frameData, index) => ({path: `./images/frame${index}.png`, loop: getTimeImage(index)})
+    );
 
     videoshow(images, videoOptions)
         .save(finalVideoPath)
@@ -83,6 +86,7 @@ function generateVideo(body, res) {
         })
         .on('end', function (output) {
             // success
+            console.log("video generated");
             isGenerating = false;
             res.json( {path: `/download/${body.id}`} );
         })

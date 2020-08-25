@@ -21,6 +21,22 @@ let program = {
     downloadPath: ""
 };
 
+let waitObj = {
+    timer: 0,
+    beginning: true // 2 waits for begin and end
+}
+const WAIT_FINISH = 40;
+// set waittimer / return if wait is done
+function updateWait(beginning){
+    // setting new wait?
+    if (!isNaN(beginning)) {
+        waitObj.beginning = beginning;
+        waitObj.timer = 0;
+    }
+    waitObj.timer++;
+    return waitObj.timer >= WAIT_FINISH;
+}
+
 const SCROLL_SPEED = 0.6;
 
 const sketch = (p) => {
@@ -37,6 +53,7 @@ const sketch = (p) => {
             setOptionsVisibility(false);
             program.status = "playing";
             setUpTextPosition();
+            updateWait(1);
         }
         else if (program.status === "playing") {
             previewButton.innerText = "Preview";
@@ -52,6 +69,7 @@ const sketch = (p) => {
         setButtonsVisibility(false);
         program.status = "generating";
         setUpTextPosition();
+        updateWait(1);
         program.framesData = [];
     }
 
@@ -82,6 +100,7 @@ const sketch = (p) => {
         setOptionsVisibility(true);
         setButtonsVisibility(true);
         program.status = "idle";
+        program.y = 0;
 
         if (success){
             let linkEle = document.createElement('a');
@@ -129,7 +148,7 @@ const sketch = (p) => {
         p.noStroke();
     };
 
-    const STOPPING_FACTOR = 0.8;
+    const STOPPING_FACTOR = 0.85;
     p.draw = () => {
         if (program.status === "idle"){
             renderText();
@@ -137,21 +156,30 @@ const sketch = (p) => {
         else if (program.status === "playing"){
             renderText();
 
+            // if still waiting
+            if (!updateWait()) return;
+
             const bottomOfTextRect = p.height * 0.2 - program.y/100 * p.height + program.textRectHeight;
             if (bottomOfTextRect > p.height * STOPPING_FACTOR){
                 program.y += SCROLL_SPEED;
-            } else previewClicked();
+            } 
+            // finished scrolling, but has it wait for the end yet?
+            else {
+                if (waitObj.beginning === 1) updateWait(2);
+                else previewClicked();
+            }
         }
-        else if (program.status === "generating"){
+        else if (program.status === "generating"){ // no need to wait
             renderText();
 
             // capture frame
+            program.framesData.push(document.getElementById("defaultCanvas0").toDataURL());
+
             const bottomOfTextRect = p.height * 0.2 - program.y/100 * p.height + program.textRectHeight;
             if (bottomOfTextRect > p.height * STOPPING_FACTOR){
                 program.y += SCROLL_SPEED;
-                const canvasEle = document.getElementById("defaultCanvas0");
-                program.framesData.push(canvasEle.toDataURL());
-            } else sendData();
+            } 
+            else sendData();
         }
     };
 
@@ -185,25 +213,15 @@ const sketch = (p) => {
                     } else {
                         // new line
                         currentCharCount = word.length + 1;
-                        newLine += "\n" + word + " ";
+                        newLine += String.fromCharCode(10) + word + " ";
                     }
                 });
 
-                linesList[i] = newLine;
-
-/*
-                for (let j=1; j < line.length; j++){
-                    // find the first SPACE that is beyond charsLimit to cut
-                    if (line[j] === " " && j >= charsLimit){
-                        linesList[i] = line.slice(0, j); // 1st part
-                        linesList.splice(i+1, 0, line.slice(j+1)); // 2nd part
-                        break;
-                    }
-                }   */             
+                linesList[i] = newLine;          
             }
         }
 
-        return linesList;
+        return linesList.join(String.fromCharCode(10)).split(String.fromCharCode(10));
     }
 
     function renderText(){
