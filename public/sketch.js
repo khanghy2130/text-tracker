@@ -17,9 +17,11 @@ let program = {
     y: 0,
     textRectHeight: 0,
 
-    framesData: []
+    framesData: [],
+    downloadPath: ""
 };
 
+const SCROLL_SPEED = 1.0;
 
 const sketch = (p) => {
     function createTheCanvas(){
@@ -55,8 +57,23 @@ const sketch = (p) => {
     function sendData(){
         program.status = "waiting";
 
-        console.log(program.framesData.length);
-        stopGenerating(true);
+        fetch('/upload', {
+            method: 'POST', 
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify( {id: program.UNIQUE_ID, frames: program.framesData} )
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.path === null) throw "no path data";
+            program.downloadPath = data.path;
+            stopGenerating(true);
+          })
+          .catch((error) => {
+            console.log(error);
+            stopGenerating(false);
+          });
     }
 
     function stopGenerating(success){
@@ -66,8 +83,10 @@ const sketch = (p) => {
         program.status = "idle";
 
         if (success){
-            alert("success");
-        } else alert("fail");
+            let linkEle = document.createElement('a');
+            linkEle.href = program.downloadPath;
+            linkEle.click();
+        } else alert("Something went wrong, please retry.");
     }
 
 
@@ -104,7 +123,7 @@ const sketch = (p) => {
 
 
         createTheCanvas();
-        p.frameRate(40);
+        p.frameRate(45);
         p.textAlign(p.CENTER, p.CENTER);
 
     };
@@ -123,8 +142,9 @@ const sketch = (p) => {
             p.textFont(fontFamiliesDropdown.value, textSizeSlider.value/100 * p.width);
             p.text(textArea.value, p.width/2, p.height - (program.y/100 * p.height));
 
-            if (program.y++ < 100 + program.textRectHeight/2){}
-            else previewClicked();
+            if (program.y < 100 + program.textRectHeight/2){
+                program.y += SCROLL_SPEED;
+            } else previewClicked();
         }
         else if (program.status === "generating"){
             p.background(bgColorPicker.value);
@@ -133,7 +153,8 @@ const sketch = (p) => {
             p.text(textArea.value, p.width/2, p.height - (program.y/100 * p.height));
 
             // capture frame
-            if (program.y++ < 100 + program.textRectHeight/2){
+            if (program.y < 100 + program.textRectHeight/2){
+                program.y += SCROLL_SPEED;
                 const canvasEle = document.getElementById("defaultCanvas0");
                 program.framesData.push(canvasEle.toDataURL());
             } else sendData();
@@ -147,4 +168,3 @@ window.onload = () => {
 
 
 
-///////////// hide options when generating

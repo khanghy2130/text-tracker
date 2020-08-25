@@ -1,3 +1,4 @@
 node_modules/
 .vscode/
-netlify/
+result/*.mp4
+images/*.png
