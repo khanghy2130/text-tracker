@@ -5,7 +5,7 @@ const videoshow = require('videoshow')
 const fsExtra = require('fs-extra')
 
 const app = express()
-const PORT = 3000
+const PORT = process.env.PORT || 3000;
 
 app.use(express.static(__dirname + '/public'));
 app.use(express.json({limit: '10mb'}));
@@ -38,7 +38,7 @@ app.post('/upload', function (req, res) {
 
 
 app.listen(PORT, () => {
-    console.log(`App is listening at http://localhost:${PORT}`)
+    console.log(`App is listening at port ${PORT}`)
 })
 
 
