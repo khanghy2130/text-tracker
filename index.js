@@ -52,13 +52,13 @@ function generateVideo(body, res) {
     });
 
 
-    let secondsToShowEachImage = 0.03
+    let secondsToShowEachImage = 0.02
     let finalVideoPath = `./result/v_${body.id}.mp4`
 
     // setup videoshow options
     let videoOptions = {
         loop: secondsToShowEachImage,
-        fps: 45,
+        fps: 30,
         transition: false,
         videoBitrate: 1024,
         videoCodec: 'libx264',

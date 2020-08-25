@@ -21,7 +21,7 @@ let program = {
     downloadPath: ""
 };
 
-const SCROLL_SPEED = 1.0;
+const SCROLL_SPEED = 0.6;
 
 const sketch = (p) => {
     function createTheCanvas(){
@@ -31,6 +31,7 @@ const sketch = (p) => {
     }
 
     function previewClicked(){
+        program.y = 0;
         if (program.status === "idle"){
             previewButton.innerText = "Stop preview";
             setOptionsVisibility(false);
@@ -123,34 +124,25 @@ const sketch = (p) => {
 
 
         createTheCanvas();
-        p.frameRate(45);
-        p.textAlign(p.CENTER, p.CENTER);
-
+        p.frameRate(30);
+        p.textAlign(p.LEFT, p.TOP);
+        p.noStroke();
     };
 
 
     p.draw = () => {
         if (program.status === "idle"){
-            p.background(bgColorPicker.value);
-            p.fill(textColorPicker.value);
-            p.textFont(fontFamiliesDropdown.value, textSizeSlider.value/100 * p.width);
-            p.text(textArea.value, p.width/2, p.height/2);
+            renderText();
         }
         else if (program.status === "playing"){
-            p.background(bgColorPicker.value);
-            p.fill(textColorPicker.value);
-            p.textFont(fontFamiliesDropdown.value, textSizeSlider.value/100 * p.width);
-            p.text(textArea.value, p.width/2, p.height - (program.y/100 * p.height));
+            renderText();
 
             if (program.y < 100 + program.textRectHeight/2){
                 program.y += SCROLL_SPEED;
             } else previewClicked();
         }
         else if (program.status === "generating"){
-            p.background(bgColorPicker.value);
-            p.fill(textColorPicker.value);
-            p.textFont(fontFamiliesDropdown.value, textSizeSlider.value/100 * p.width);
-            p.text(textArea.value, p.width/2, p.height - (program.y/100 * p.height));
+            renderText();
 
             // capture frame
             if (program.y < 100 + program.textRectHeight/2){
@@ -160,6 +152,56 @@ const sketch = (p) => {
             } else sendData();
         }
     };
+
+    const LINE_HEIGHT_FACTOR = 1.25;
+    const LINE_CHAR_FACTOR = 0.55;
+
+    function renderText(){
+        const fSize = textSizeSlider.value/100 * p.width;
+        const renderY = p.height * 0.2 - program.y/100 * p.height;
+        const linesList = textArea.value.split(String.fromCharCode(10));
+
+        // remove empty trailing lines
+        while(linesList.length > 0 && linesList[linesList.length - 1].length === 0){
+            linesList.pop();
+        }
+
+        // loop thru each line to see if it's too long then cut it
+        const charsLimit = (p.width * 0.9) / (fSize * LINE_CHAR_FACTOR) - fSize * 0.05;
+        console.log(charsLimit);
+        for (let i=0; i < linesList.length; i++){
+            let line = linesList[i];
+            if (line.length > charsLimit){
+                for (let j=1; j < line.length; j++){
+                    // find the first SPACE that is beyond charsLimit to cut
+                    if (line[j] === " " && j >= charsLimit){
+                        linesList[i] = line.slice(0, j); // 1st part
+                        linesList.splice(i+1, 0, line.slice(j+1)); // 2nd part
+                        break;
+                    }
+                }                
+            }
+        }
+        
+
+        p.background(bgColorPicker.value);
+
+        ///////// visual test
+        p.fill(250);
+        p.rect(
+            p.width * 0.03, renderY,
+            fSize * charsLimit * LINE_CHAR_FACTOR, 
+            linesList.length * fSize * LINE_HEIGHT_FACTOR
+        );
+
+
+        
+        p.fill(textColorPicker.value); 
+        p.textFont(fontFamiliesDropdown.value, fSize);
+        p.text(linesList.join(String.fromCharCode(10)), p.width * 0.03, renderY);
+
+        
+    }
 };
 
 window.onload = () => {
