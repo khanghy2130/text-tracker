@@ -92,9 +92,9 @@ const sketch = (p) => {
 
 
     function setUpTextPosition(){
-        let linesAmount = textArea.value.split(String.fromCharCode(10)).length;
-            program.textRectHeight = textSizeSlider.value/100 * p.width * linesAmount * 0.28;
-            program.y = -program.textRectHeight/2; // image mode is center -> half of text rect is below canvas height
+        const linesAmount = getResultLinesList().length;
+        program.textRectHeight = textSizeSlider.value/100 * p.width * linesAmount * LINE_HEIGHT_FACTOR;
+        program.y = 0;
     }
     function setOptionsVisibility(shown){
         document.getElementById("options-container").style.display = (shown)? "flex" : "none";
@@ -129,7 +129,7 @@ const sketch = (p) => {
         p.noStroke();
     };
 
-
+    const STOPPING_FACTOR = 0.8;
     p.draw = () => {
         if (program.status === "idle"){
             renderText();
@@ -137,7 +137,8 @@ const sketch = (p) => {
         else if (program.status === "playing"){
             renderText();
 
-            if (program.y < 100 + program.textRectHeight/2){
+            const bottomOfTextRect = p.height * 0.2 - program.y/100 * p.height + program.textRectHeight;
+            if (bottomOfTextRect > p.height * STOPPING_FACTOR){
                 program.y += SCROLL_SPEED;
             } else previewClicked();
         }
@@ -145,7 +146,8 @@ const sketch = (p) => {
             renderText();
 
             // capture frame
-            if (program.y < 100 + program.textRectHeight/2){
+            const bottomOfTextRect = p.height * 0.2 - program.y/100 * p.height + program.textRectHeight;
+            if (bottomOfTextRect > p.height * STOPPING_FACTOR){
                 program.y += SCROLL_SPEED;
                 const canvasEle = document.getElementById("defaultCanvas0");
                 program.framesData.push(canvasEle.toDataURL());
@@ -154,9 +156,8 @@ const sketch = (p) => {
     };
 
     const LINE_HEIGHT_FACTOR = 1.25;
-    const LINE_CHAR_FACTOR = 0.55;
-
-    function renderText(){
+    const LINE_CHAR_FACTOR = 0.52;
+    function getResultLinesList(){
         const fSize = textSizeSlider.value/100 * p.width;
         const renderY = p.height * 0.2 - program.y/100 * p.height;
         const linesList = textArea.value.split(String.fromCharCode(10));
@@ -167,11 +168,30 @@ const sketch = (p) => {
         }
 
         // loop thru each line to see if it's too long then cut it
-        const charsLimit = (p.width * 0.9) / (fSize * LINE_CHAR_FACTOR) - fSize * 0.05;
-        console.log(charsLimit);
+        const charsLimit = (p.width * 0.9) / (fSize * LINE_CHAR_FACTOR);
         for (let i=0; i < linesList.length; i++){
             let line = linesList[i];
+            // if this line is too long
             if (line.length > charsLimit){
+                let wordsList = line.split(" ");
+                currentCharCount = 0;
+
+                let newLine = "";
+                wordsList.forEach((word) => {
+                    if (currentCharCount + word.length <= charsLimit) {
+                        // same line
+                        currentCharCount += word.length + 1; // word and a space
+                        newLine += word + " ";
+                    } else {
+                        // new line
+                        currentCharCount = word.length + 1;
+                        newLine += "\n" + word + " ";
+                    }
+                });
+
+                linesList[i] = newLine;
+
+/*
                 for (let j=1; j < line.length; j++){
                     // find the first SPACE that is beyond charsLimit to cut
                     if (line[j] === " " && j >= charsLimit){
@@ -179,22 +199,22 @@ const sketch = (p) => {
                         linesList.splice(i+1, 0, line.slice(j+1)); // 2nd part
                         break;
                     }
-                }                
+                }   */             
             }
         }
-        
+
+        return linesList;
+    }
+
+    function renderText(){
+        const fSize = textSizeSlider.value/100 * p.width;
+        const renderY = p.height * 0.2 - program.y/100 * p.height;
+        const linesList = getResultLinesList();
 
         p.background(bgColorPicker.value);
 
-        ///////// visual test
-        p.fill(250);
-        p.rect(
-            p.width * 0.03, renderY,
-            fSize * charsLimit * LINE_CHAR_FACTOR, 
-            linesList.length * fSize * LINE_HEIGHT_FACTOR
-        );
-
-
+        // p.fill(250);
+        // p.rect(0, renderY, 300, program.textRectHeight);
         
         p.fill(textColorPicker.value); 
         p.textFont(fontFamiliesDropdown.value, fSize);
