@@ -76,6 +76,8 @@ function generateVideo(body, res) {
             //console.log('encoding ' + finalVideoPath + ' with command ' + command)
         })
         .on('error', function (err, stdout, stderr) {
+            console.log(err);
+            isGenerating = false;
             res.json( {path: null} );
             return Promise.reject(new Error(err))
         })
