@@ -180,7 +180,7 @@ const sketch = (p) => {
 
             const bottomOfTextRect = p.height * 0.2 - program.y/100 * p.height + program.textRectHeight;
             if (bottomOfTextRect > p.height * STOPPING_FACTOR){
-                program.y += SCROLL_SPEED/2;
+                program.y += SCROLL_SPEED * 0.5;
             } 
             else sendData();
         }
