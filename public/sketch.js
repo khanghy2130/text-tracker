@@ -37,6 +37,7 @@ function updateWait(beginning){
     return waitObj.timer >= WAIT_FINISH;
 }
 
+const DEFAULT_FRAMERATE = 24;
 const SCROLL_SPEED = 0.6;
 
 const sketch = (p) => {
@@ -71,6 +72,7 @@ const sketch = (p) => {
         setUpTextPosition();
         updateWait(1);
         program.framesData = [];
+        p.frameRate(20);
     }
 
     function sendData(){
@@ -101,6 +103,7 @@ const sketch = (p) => {
         setButtonsVisibility(true);
         program.status = "idle";
         program.y = 0;
+        p.frameRate(DEFAULT_FRAMERATE);
 
         if (success){
             let linkEle = document.createElement('a');
@@ -143,7 +146,7 @@ const sketch = (p) => {
 
 
         createTheCanvas();
-        p.frameRate(30);
+        p.frameRate(DEFAULT_FRAMERATE);
         p.textAlign(p.LEFT, p.TOP);
         p.noStroke();
     };
@@ -177,7 +180,7 @@ const sketch = (p) => {
 
             const bottomOfTextRect = p.height * 0.2 - program.y/100 * p.height + program.textRectHeight;
             if (bottomOfTextRect > p.height * STOPPING_FACTOR){
-                program.y += SCROLL_SPEED;
+                program.y += SCROLL_SPEED/2;
             } 
             else sendData();
         }

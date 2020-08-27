@@ -55,9 +55,9 @@ function generateVideo(body, res) {
 
     // setup videoshow options
     let videoOptions = {
-        fps: 30,
+        fps: 60,
         transition: false,
-        videoBitrate: 2048,
+        videoBitrate: 1024,
         videoCodec: 'libx264',
         size: '640x?',
         outputOptions: ['-pix_fmt yuv420p'],
@@ -66,7 +66,7 @@ function generateVideo(body, res) {
 
     function getTimeImage(index){
         if (index === 0 || index === body.frames.length - 1) return 1.7; // wait time
-        else return 1/15; // frame time
+        else return 1/30; // frame time
     }
     // array of images
     let images = body.frames.map(
