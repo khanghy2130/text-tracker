@@ -10,9 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "base64-img": "^1.0.4",
     "express": "^4.17.1",
-    "fs-extra": "^9.0.1",
-    "videoshow": "^0.1.12"
+    "fluent-ffmpeg": "^2.1.2",
+    "mp4-mjpeg": "0.0.2",
+    "node-p5": "^1.0.3"
   }
 }

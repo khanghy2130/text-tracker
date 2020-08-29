@@ -37,9 +37,6 @@ function updateWait(beginning){
     return waitObj.timer >= WAIT_FINISH;
 }
 
-const DEFAULT_FRAMERATE = 24;
-const SCROLL_SPEED = 0.6;
-
 const sketch = (p) => {
     function createTheCanvas(){
         const heightFactor = [1, 9/16, 16/9][Number(ratioDropdown.value)];
@@ -103,7 +100,7 @@ const sketch = (p) => {
         setButtonsVisibility(true);
         program.status = "idle";
         program.y = 0;
-        p.frameRate(DEFAULT_FRAMERATE);
+        p.frameRate(30);
 
         if (success){
             let linkEle = document.createElement('a');
@@ -146,11 +143,12 @@ const sketch = (p) => {
 
 
         createTheCanvas();
-        p.frameRate(DEFAULT_FRAMERATE);
+        p.frameRate(30);
         p.textAlign(p.LEFT, p.TOP);
         p.noStroke();
     };
 
+    const SCROLL_SPEED = 0.28;
     const TOP_PADDING = 0.4;
     const BOTTOM_PADDING = 0.7;
     p.draw = () => {
@@ -165,6 +163,7 @@ const sketch = (p) => {
 
             const bottomOfTextRect = p.height * TOP_PADDING - program.y/100 * p.height + program.textRectHeight;
             if (bottomOfTextRect > p.height * BOTTOM_PADDING){
+                const fSize = textSizeSlider.value;
                 program.y += SCROLL_SPEED;
             } 
             // finished scrolling, but has it wait for the end yet?

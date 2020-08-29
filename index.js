@@ -1,93 +1,121 @@
 const express = require('express')
 const path = require('path')
-const base64Img = require('base64-img')
-const videoshow = require('videoshow')
-const fsExtra = require('fs-extra')
+const fs = require('fs')
+const p5 = require('node-p5')
+const mjpeg = require('mp4-mjpeg')
+const ffmpegCommand = require('fluent-ffmpeg')
+
 
 const app = express()
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(__dirname + '/public'));
-app.use(express.json({limit: '25mb'}));
 
 app.get('/', function (req, res) {
     res.sendFile(path.join(__dirname + '/public/home.html'));
 });
 
 app.get('/download/:id', function (req, res) {
-    const file = `${__dirname}/result/v_${req.params.id}.mp4`;
-    res.download(file);
+    const fileName = `${__dirname}/result/final_${req.params.id}.mp4`;
+    if (fs.existsSync(fileName)){
+        res.download(fileName, () => {
+            // remove file
+            try {
+                fs.unlinkSync(fileName)
+            } catch(err) {
+                console.error(err)
+            }
+        });
+    } else {
+        res.send(`Error: requested video (${req.params.id}) doesn't exist.`);
+    }
 });
 
 
 let isGenerating = false; // generate one video at once
-
-app.post('/upload', function (req, res) {
-    if (isGenerating) {
-        res.json( {path: null} );
-        return;
-    }
-
-    console.log("generation process started");
-    generateVideo(req.body, res);
-});
-
-
-
-
-
 
 app.listen(PORT, () => {
     console.log(`App is listening at port ${PORT}`)
 })
 
 
-function generateVideo(body, res) {
-    isGenerating = true;
-    
-    // clear images directory then make new frames
-    fsExtra.emptyDirSync("./images");
-    body.frames.forEach((frameData, index) => {
-        base64Img.imgSync(frameData, __dirname + '/images', 'frame' + index);
-    });
 
-    let finalVideoPath = `./result/v_${body.id}.mp4`
+function sketch(p) {
+    let canvas;
 
-    // setup videoshow options
-    let videoOptions = {
-        fps: 60,
-        transition: false,
-        videoBitrate: 1024,
-        videoCodec: 'libx264',
-        size: '640x?',
-        outputOptions: ['-pix_fmt yuv420p'],
-        format: 'mp4'
+    p.setup = () => {
+        canvas = p.createCanvas(640, 640);
+        p.background(50);
+        p.textSize(50);
+        p.text('hello world!', 50, 100);
+        //console.log(canvas.canvas.toDataURL("image/jpeg"));
     }
-
-    function getTimeImage(index){
-        if (index === 0 || index === body.frames.length - 1) return 1.7; // wait time
-        else return 1/30; // frame time
+    p.draw = () => {
+        
     }
-    // array of images
-    let images = body.frames.map(
-        (frameData, index) => ({path: `./images/frame${index}.png`, loop: getTimeImage(index)})
-    );
+}
+ 
+let p5Instance = p5.createSketch(sketch);
 
-    videoshow(images, videoOptions)
-        .save(finalVideoPath)
-        .on('start', function (command) {
-            //console.log('encoding ' + finalVideoPath + ' with command ' + command)
-        })
-        .on('error', function (err, stdout, stderr) {
-            console.log(err);
-            isGenerating = false;
-            res.json( {path: null} );
-            return Promise.reject(new Error(err))
-        })
-        .on('end', function (output) {
-            // success
-            console.log("video generated");
-            isGenerating = false;
-            res.json( {path: `/download/${body.id}`} );
-        })
+/*
+generateVideo(
+    [
+    ], 
+    12345, 
+    null
+)
+*/
+
+// takes array of dataURLs. creates video with ID. responds with download path
+function generateVideo(framesData, id, res){
+    const fileName = `./result/id_${id}.mp4`;
+    const finalFileName = `./result/final_${id}.mp4`;
+
+    mjpeg({ fileName: fileName, ignoreIdenticalFrames: 0 })
+    .then( (recorder) => {
+        
+        framesData.forEach(dataURL => {
+            // append a JPEG image as a data URL to the video
+            recorder.appendImageDataUrl( dataURL )
+                .then( () => {
+                    // image added
+                    console.log("images added");
+                })
+                .catch(handleError)
+        });
+
+        recorder.finalize()
+            .then( () => {
+                // video successfully created
+                console.log("video finalized");
+
+                let command = new ffmpegCommand();
+                command.input(fileName);
+                command.videoCodec("libx264");
+                command.videoBitrate("1000k", true);
+                command.on("end", function() {
+                    // remove file input video file
+                    try {
+                        fs.unlinkSync(fileName)
+                    } catch(err) {
+                        console.error(err)
+                    }
+
+                    console.log("mp4 ready");
+                    isGenerating = false;
+                    //res.json( {path: `/download/${id}`} );
+                });
+                command.on("error", handleError);
+                command.output(finalFileName);
+                command.run();
+            })
+            .catch(handleError)
+    })
+    .catch(handleError)
+
+    function handleError(err){
+        console.log(err);
+        isGenerating = false;
+        //res.json( {path: null} );
+    }
 }
