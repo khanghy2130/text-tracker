@@ -151,7 +151,8 @@ const sketch = (p) => {
         p.noStroke();
     };
 
-    const STOPPING_FACTOR = 0.85;
+    const TOP_PADDING = 0.4;
+    const BOTTOM_PADDING = 0.7;
     p.draw = () => {
         if (program.status === "idle"){
             renderText();
@@ -162,8 +163,8 @@ const sketch = (p) => {
             // if still waiting
             if (!updateWait()) return;
 
-            const bottomOfTextRect = p.height * 0.2 - program.y/100 * p.height + program.textRectHeight;
-            if (bottomOfTextRect > p.height * STOPPING_FACTOR){
+            const bottomOfTextRect = p.height * TOP_PADDING - program.y/100 * p.height + program.textRectHeight;
+            if (bottomOfTextRect > p.height * BOTTOM_PADDING){
                 program.y += SCROLL_SPEED;
             } 
             // finished scrolling, but has it wait for the end yet?
@@ -178,8 +179,8 @@ const sketch = (p) => {
             // capture frame
             program.framesData.push(document.getElementById("defaultCanvas0").toDataURL());
 
-            const bottomOfTextRect = p.height * 0.2 - program.y/100 * p.height + program.textRectHeight;
-            if (bottomOfTextRect > p.height * STOPPING_FACTOR){
+            const bottomOfTextRect = p.height * TOP_PADDING - program.y/100 * p.height + program.textRectHeight;
+            if (bottomOfTextRect > p.height * BOTTOM_PADDING){
                 program.y += SCROLL_SPEED * 0.5;
             } 
             else sendData();
@@ -229,7 +230,7 @@ const sketch = (p) => {
 
     function renderText(){
         const fSize = textSizeSlider.value/100 * p.width;
-        const renderY = p.height * 0.2 - program.y/100 * p.height;
+        const renderY = p.height * TOP_PADDING - program.y/100 * p.height;
         const linesList = getResultLinesList();
 
         p.background(bgColorPicker.value);
