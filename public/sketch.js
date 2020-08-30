@@ -13,19 +13,17 @@ let ratioDropdown;
 
 let program = {
     UNIQUE_ID : Date.now(),
-    status: "idle", // idle, playing, generating, waiting
+    status: "idle", // idle, playing
     y: 0,
     textRectHeight: 0,
-
-    framesData: [],
     downloadPath: ""
 };
-
+const WAIT_FINISH = 40; // wait duration frames amount
 let waitObj = {
     timer: 0,
     beginning: true // 2 waits for begin and end
 }
-const WAIT_FINISH = 40;
+
 // set waittimer / return if wait is done
 function updateWait(beginning){
     // setting new wait?
@@ -38,7 +36,7 @@ function updateWait(beginning){
 }
 
 const sketch = (p) => {
-    function createTheCanvas(){
+    function createTheCanvas(creating){
         const heightFactor = [1, 9/16, 16/9][Number(ratioDropdown.value)];
         const widthValue = p.min(document.documentElement.clientWidth, (heightFactor > 1) ? 300 : 500);
         p.createCanvas(widthValue, widthValue * heightFactor);
@@ -66,21 +64,38 @@ const sketch = (p) => {
         setOptionsVisibility(false);
         setButtonsVisibility(false);
         program.status = "generating";
-        setUpTextPosition();
-        updateWait(1);
-        program.framesData = [];
-        p.frameRate(20);
-    }
 
-    function sendData(){
-        program.status = "waiting";
+        
+        // send configs (canvas size: 320x?)
+        const _WIDTH = 640;
+        const resultLinesList = getResultLinesList(_WIDTH);
 
-        fetch('/upload', {
+        const configs = {
+            id: Date.now(), 
+
+            WAIT_FINISH,
+            SCROLL_SPEED,
+            TOP_PADDING,
+            BOTTOM_PADDING,
+            LEFT_PADDING,
+            RIGHT_PADDING,
+
+            bgColor: bgColorPicker.value,
+            textColor: textColorPicker.value,
+            processedText: getResultLinesList(_WIDTH).join(String.fromCharCode(10)),
+            rectHeight: textSizeSlider.value/100 * _WIDTH * resultLinesList.length * LINE_HEIGHT_FACTOR,
+
+            canvasHeightFactor: [1, 9/16, 16/9][Number(ratioDropdown.value)], // ratio
+            fSize: textSizeSlider.value/100 * _WIDTH,
+            fFamily: fontFamiliesDropdown.value
+        };
+
+        fetch('/generate', {
             method: 'POST', 
             headers: {
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify( {id: program.UNIQUE_ID, frames: program.framesData} )
+            body: JSON.stringify( configs )
           })
           .then(res => res.json())
           .then(data => {
@@ -100,18 +115,17 @@ const sketch = (p) => {
         setButtonsVisibility(true);
         program.status = "idle";
         program.y = 0;
-        p.frameRate(30);
 
         if (success){
             let linkEle = document.createElement('a');
             linkEle.href = program.downloadPath;
             linkEle.click();
-        } else alert("Something went wrong, please retry.");
+        } else alert("Something went wrong, please retry later.");
     }
 
 
     function setUpTextPosition(){
-        const linesAmount = getResultLinesList().length;
+        const linesAmount = getResultLinesList(p.width).length;
         program.textRectHeight = textSizeSlider.value/100 * p.width * linesAmount * LINE_HEIGHT_FACTOR;
         program.y = 0;
     }
@@ -148,9 +162,11 @@ const sketch = (p) => {
         p.noStroke();
     };
 
-    const SCROLL_SPEED = 0.28;
+    const SCROLL_SPEED = 0.33;
     const TOP_PADDING = 0.4;
     const BOTTOM_PADDING = 0.7;
+    const LEFT_PADDING = 0.03;
+    const RIGHT_PADDING = 0.9;
     p.draw = () => {
         if (program.status === "idle"){
             renderText();
@@ -163,7 +179,6 @@ const sketch = (p) => {
 
             const bottomOfTextRect = p.height * TOP_PADDING - program.y/100 * p.height + program.textRectHeight;
             if (bottomOfTextRect > p.height * BOTTOM_PADDING){
-                const fSize = textSizeSlider.value;
                 program.y += SCROLL_SPEED;
             } 
             // finished scrolling, but has it wait for the end yet?
@@ -172,25 +187,23 @@ const sketch = (p) => {
                 else previewClicked();
             }
         }
-        else if (program.status === "generating"){ // no need to wait
-            renderText();
-
-            // capture frame
-            program.framesData.push(document.getElementById("defaultCanvas0").toDataURL());
-
-            const bottomOfTextRect = p.height * TOP_PADDING - program.y/100 * p.height + program.textRectHeight;
-            if (bottomOfTextRect > p.height * BOTTOM_PADDING){
-                program.y += SCROLL_SPEED * 0.5;
-            } 
-            else sendData();
+        else if (program.status === "generating"){
+            const r = p.min(p.width, p.height) * 0.2;
+            const t = p.frameCount * 0.07;
+            p.fill(250);
+            p.circle(
+                p.width/2 + p.cos(t) * r,
+                p.height/2 + p.sin(t) * r,
+                r * 0.3
+            );
+            p.background(0, 0, 0, 15);
         }
     };
 
     const LINE_HEIGHT_FACTOR = 1.25;
     const LINE_CHAR_FACTOR = 0.52;
-    function getResultLinesList(){
-        const fSize = textSizeSlider.value/100 * p.width;
-        const renderY = p.height * 0.2 - program.y/100 * p.height;
+    function getResultLinesList(w){
+        const fSize = textSizeSlider.value/100 * w;
         const linesList = textArea.value.split(String.fromCharCode(10));
 
         // remove empty trailing lines
@@ -199,7 +212,7 @@ const sketch = (p) => {
         }
 
         // loop thru each line to see if it's too long then cut it
-        const charsLimit = (p.width * 0.9) / (fSize * LINE_CHAR_FACTOR);
+        const charsLimit = (w * RIGHT_PADDING) / (fSize * LINE_CHAR_FACTOR);
         for (let i=0; i < linesList.length; i++){
             let line = linesList[i];
             // if this line is too long
@@ -230,16 +243,13 @@ const sketch = (p) => {
     function renderText(){
         const fSize = textSizeSlider.value/100 * p.width;
         const renderY = p.height * TOP_PADDING - program.y/100 * p.height;
-        const linesList = getResultLinesList();
+        const linesList = getResultLinesList(p.width);
 
         p.background(bgColorPicker.value);
-
-        // p.fill(250);
-        // p.rect(0, renderY, 300, program.textRectHeight);
         
         p.fill(textColorPicker.value); 
         p.textFont(fontFamiliesDropdown.value, fSize);
-        p.text(linesList.join(String.fromCharCode(10)), p.width * 0.03, renderY);
+        p.text(linesList.join(String.fromCharCode(10)), p.width * LEFT_PADDING, renderY);
 
         
     }

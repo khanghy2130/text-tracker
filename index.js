@@ -6,10 +6,12 @@ const mjpeg = require('mp4-mjpeg')
 const ffmpegCommand = require('fluent-ffmpeg')
 
 
+
 const app = express()
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(__dirname + '/public'));
+app.use(express.json());
 
 app.get('/', function (req, res) {
     res.sendFile(path.join(__dirname + '/public/home.html'));
@@ -31,91 +33,155 @@ app.get('/download/:id', function (req, res) {
     }
 });
 
-
-let isGenerating = false; // generate one video at once
+app.post('/generate', function (req, res) {
+    p5Program.configs = req.body;
+    p5Program.res = res;
+    p5Program.start();
+});
 
 app.listen(PORT, () => {
     console.log(`App is listening at port ${PORT}`)
 })
 
+// load fonts
+const loadedFonts = [
+    p5.loadFont({ path: './fonts/Merriweather.ttf', family: 'Merriweather' }),
+    p5.loadFont({ path: './fonts/Poppins.ttf', family: 'Poppins' }),
+    p5.loadFont({ path: './fonts/PlayfairDisplay.ttf', family: 'Playfair Display' })
+];
 
+
+let isGenerating = false; // generate one video at once
+let p5Program = {}; // contains configs, res, and start()
 
 function sketch(p) {
     let canvas;
+    let y = 0;
+    let framesData = [];
+    //console.log(canvas.canvas.toDataURL("image/jpeg"));
+
+    p5Program.start = function(){
+        isGenerating = true;
+        y = 0;
+        framesData = [];
+
+        const _WIDTH = 640;
+        p.createCanvas(_WIDTH, _WIDTH * p5Program.configs.canvasHeightFactor);
+        p.textFont(p5Program.configs.fFamily, p5Program.configs.fSize);
+
+        p.loop();
+    }
+
+    function stopAndPassFrames(){
+        p.noLoop();
+
+        // adding 1st and last frame
+        for (let i=0; i < p5Program.configs.WAIT_FINISH; i++){
+            framesData.unshift(framesData[0]);
+            framesData.push(framesData[framesData.length - 1]);
+        }
+
+        generateVideo(
+            framesData,
+            p5Program.configs.id, 
+            p5Program.res
+        )
+    }
 
     p.setup = () => {
         canvas = p.createCanvas(640, 640);
-        p.background(50);
-        p.textSize(50);
-        p.text('hello world!', 50, 100);
-        //console.log(canvas.canvas.toDataURL("image/jpeg"));
+        p.frameRate(30);
+        p.noLoop();
     }
     p.draw = () => {
-        
+        if (!p5Program.configs) {
+            p.noLoop();
+            return;
+        }
+
+        // if y is below OR framesData has nothing
+        if (y < 100){
+            y++;
+
+
+            const r = p.min(p.width, p.height) * 0.2;
+            const t = p.frameCount * 0.07;
+            p.fill(250);
+            p.circle(
+                p.width/2 + p.cos(t) * r,
+                p.height/2 + p.sin(t) * r,
+                r * 0.3
+            );
+            
+
+           p.background(0, 0, 0, 15);
+            framesData.push(canvas.canvas.toDataURL("image/jpeg"));
+            
+
+
+        } else stopAndPassFrames();
     }
 }
- 
+
+// load fonts
 let p5Instance = p5.createSketch(sketch);
 
-/*
-generateVideo(
-    [
-    ], 
-    12345, 
-    null
-)
-*/
 
 // takes array of dataURLs. creates video with ID. responds with download path
-function generateVideo(framesData, id, res){
+function generateVideo(framesArray, id, res){
     const fileName = `./result/id_${id}.mp4`;
     const finalFileName = `./result/final_${id}.mp4`;
 
     mjpeg({ fileName: fileName, ignoreIdenticalFrames: 0 })
     .then( (recorder) => {
         
-        framesData.forEach(dataURL => {
-            // append a JPEG image as a data URL to the video
-            recorder.appendImageDataUrl( dataURL )
+        (function addNextFrame(framesList){
+            if (framesList.length === 0) {
+                finalize();
+            }
+            else {
+                recorder.appendImageDataUrl( framesList.shift() )
+                    .then( () => {
+                        addNextFrame(framesList);
+                    })
+                    .catch(handleError)
+            }
+        })(framesArray)
+
+        function finalize(){
+            recorder.finalize()
                 .then( () => {
-                    // image added
-                    console.log("images added");
+                    // video successfully created
+                    console.log("video finalized");
+    
+                    let command = new ffmpegCommand();
+                    command.input(fileName);
+                    command.videoCodec("libx264");
+                    command.videoBitrate("1000k", true);
+                    command.on("end", function() {
+                        // remove file input video file
+                        try {
+                            fs.unlinkSync(fileName)
+                        } catch(err) {
+                            console.error(err)
+                        }
+    
+                        console.log("mp4 ready");
+                        isGenerating = false;
+                        res.json( {path: `/download/${id}`} );
+                    });
+                    command.on("error", handleError);
+                    command.output(finalFileName);
+                    command.run();
                 })
                 .catch(handleError)
-        });
-
-        recorder.finalize()
-            .then( () => {
-                // video successfully created
-                console.log("video finalized");
-
-                let command = new ffmpegCommand();
-                command.input(fileName);
-                command.videoCodec("libx264");
-                command.videoBitrate("1000k", true);
-                command.on("end", function() {
-                    // remove file input video file
-                    try {
-                        fs.unlinkSync(fileName)
-                    } catch(err) {
-                        console.error(err)
-                    }
-
-                    console.log("mp4 ready");
-                    isGenerating = false;
-                    //res.json( {path: `/download/${id}`} );
-                });
-                command.on("error", handleError);
-                command.output(finalFileName);
-                command.run();
-            })
-            .catch(handleError)
+        }
     })
     .catch(handleError)
 
     function handleError(err){
         console.log(err);
         isGenerating = false;
-        //res.json( {path: null} );
+        res.json( {path: null} );
     }
 }
