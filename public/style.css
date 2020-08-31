@@ -10,7 +10,10 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    font-family: "Merriweather";
+    font-family: "Poppins";
+}
+button, textarea {
+    font-family: "Poppins";
 }
 
 #canvas-program-container {

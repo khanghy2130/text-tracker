@@ -66,13 +66,14 @@ const sketch = (p) => {
         program.status = "generating";
 
         
-        // send configs (canvas size: 320x?)
-        const _WIDTH = 640;
+        // send configs
+        const _WIDTH = 576;
         const resultLinesList = getResultLinesList(_WIDTH);
 
         const configs = {
             id: Date.now(), 
 
+            _WIDTH,
             WAIT_FINISH,
             SCROLL_SPEED,
             TOP_PADDING,
@@ -250,8 +251,6 @@ const sketch = (p) => {
         p.fill(textColorPicker.value); 
         p.textFont(fontFamiliesDropdown.value, fSize);
         p.text(linesList.join(String.fromCharCode(10)), p.width * LEFT_PADDING, renderY);
-
-        
     }
 };
 

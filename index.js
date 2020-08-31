@@ -34,6 +34,13 @@ app.get('/download/:id', function (req, res) {
 });
 
 app.post('/generate', function (req, res) {
+    // already generating? respond as fail
+    if (isGenerating) {
+        res.json( {path: null} );
+        return;
+    }
+
+    console.log("Start generating video...");
     p5Program.configs = req.body;
     p5Program.res = res;
     p5Program.start();
@@ -58,16 +65,17 @@ function sketch(p) {
     let canvas;
     let y = 0;
     let framesData = [];
-    //console.log(canvas.canvas.toDataURL("image/jpeg"));
 
     p5Program.start = function(){
         isGenerating = true;
         y = 0;
         framesData = [];
 
-        const _WIDTH = 640;
+        // setup configs
+        const _WIDTH = p5Program.configs._WIDTH;
         p.createCanvas(_WIDTH, _WIDTH * p5Program.configs.canvasHeightFactor);
         p.textFont(p5Program.configs.fFamily, p5Program.configs.fSize);
+        p.fill(p5Program.configs.textColor); 
 
         p.loop();
     }
@@ -89,8 +97,8 @@ function sketch(p) {
     }
 
     p.setup = () => {
-        canvas = p.createCanvas(640, 640);
-        p.frameRate(30);
+        canvas = p.createCanvas(480, 480);
+        p.frameRate(999);
         p.noLoop();
     }
     p.draw = () => {
@@ -99,27 +107,20 @@ function sketch(p) {
             return;
         }
 
+        renderText();
+        
+        const bottomOfTextRect = p.height * p5Program.configs.TOP_PADDING - y/100 * p.height + p5Program.configs.rectHeight;
         // if y is below OR framesData has nothing
-        if (y < 100){
-            y++;
-
-
-            const r = p.min(p.width, p.height) * 0.2;
-            const t = p.frameCount * 0.07;
-            p.fill(250);
-            p.circle(
-                p.width/2 + p.cos(t) * r,
-                p.height/2 + p.sin(t) * r,
-                r * 0.3
-            );
-            
-
-           p.background(0, 0, 0, 15);
+        if (bottomOfTextRect > p.height * p5Program.configs.BOTTOM_PADDING || framesData.length === 0){
+            y += p5Program.configs.SCROLL_SPEED;
             framesData.push(canvas.canvas.toDataURL("image/jpeg"));
-            
-
-
         } else stopAndPassFrames();
+    }
+
+    function renderText(){
+        const renderY = p.height * p5Program.configs.TOP_PADDING - y/100 * p.height;
+        p.background(p5Program.configs.bgColor);
+        p.text(p5Program.configs.processedText, p.width * p5Program.configs.LEFT_PADDING, renderY);
     }
 }
 
@@ -136,9 +137,7 @@ function generateVideo(framesArray, id, res){
     .then( (recorder) => {
         
         (function addNextFrame(framesList){
-            if (framesList.length === 0) {
-                finalize();
-            }
+            if (framesList.length === 0) finalize();
             else {
                 recorder.appendImageDataUrl( framesList.shift() )
                     .then( () => {
@@ -152,7 +151,7 @@ function generateVideo(framesArray, id, res){
             recorder.finalize()
                 .then( () => {
                     // video successfully created
-                    console.log("video finalized");
+                    console.log("video finalized...");
     
                     let command = new ffmpegCommand();
                     command.input(fileName);
@@ -166,7 +165,7 @@ function generateVideo(framesArray, id, res){
                             console.error(err)
                         }
     
-                        console.log("mp4 ready");
+                        console.log("mp4 ready!");
                         isGenerating = false;
                         res.json( {path: `/download/${id}`} );
                     });
