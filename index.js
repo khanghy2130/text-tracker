@@ -73,9 +73,7 @@ function sketch(p) {
 
         // setup configs
         const _WIDTH = p5Program.configs._WIDTH;
-        p.createCanvas(_WIDTH, _WIDTH * p5Program.configs.canvasHeightFactor);
-        p.textFont(p5Program.configs.fFamily, p5Program.configs.fSize);
-        p.fill(p5Program.configs.textColor); 
+        p.createCanvas(_WIDTH, _WIDTH * p5Program.configs.canvasHeightFactor); 
 
         p.loop();
     }
@@ -99,6 +97,7 @@ function sketch(p) {
     p.setup = () => {
         canvas = p.createCanvas(480, 480);
         p.frameRate(999);
+        p.noStroke();
         p.noLoop();
     }
     p.draw = () => {
@@ -108,6 +107,7 @@ function sketch(p) {
         }
 
         renderText();
+        renderName();
         
         const bottomOfTextRect = p.height * p5Program.configs.TOP_PADDING - y/100 * p.height + p5Program.configs.rectHeight;
         // if y is below OR framesData has nothing
@@ -119,8 +119,29 @@ function sketch(p) {
 
     function renderText(){
         const renderY = p.height * p5Program.configs.TOP_PADDING - y/100 * p.height;
+        p.textAlign(p.LEFT, p.TOP);
         p.background(p5Program.configs.bgColor);
+        p.textFont(p5Program.configs.fFamily, p5Program.configs.fSize);
+        p.fill(p5Program.configs.textColor);
         p.text(p5Program.configs.processedText, p.width * p5Program.configs.LEFT_PADDING, renderY);
+    }
+    function renderName(){
+        const _PADDING_ = 0.02;
+        let nameString = p5Program.configs.author;
+        if (nameString.length === 0) return;
+
+        p.textAlign(p.RIGHT, p.TOP);
+        p.textSize(p.width * 0.05);
+
+        p.fill(p5Program.configs.bgColor);
+        p.rect(
+            p.width, 0, 
+            (_PADDING_*2 + nameString.length*0.028) * -p.width, 
+            (_PADDING_*2 + 0.05) * p.width
+        );
+        
+        p.fill(p5Program.configs.textColor);
+        p.text(nameString, p.width * (1 - _PADDING_), p.width * _PADDING_);
     }
 }
 

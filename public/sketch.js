@@ -5,6 +5,7 @@ let generateButton;
 let waitMessage;
 
 let textArea;
+let authorInput;
 let textSizeSlider;
 let bgColorPicker;
 let textColorPicker;
@@ -43,7 +44,7 @@ const sketch = (p) => {
     }
 
     function previewClicked(){
-        if (checkTooLong()) return;
+        //if (checkTooLong()) return;
 
         program.y = 0;
         if (program.status === "idle"){
@@ -61,7 +62,7 @@ const sketch = (p) => {
     }
 
     function startGenerating(){
-        if (checkTooLong()) return;
+        //if (checkTooLong()) return;
 
         if (program.status === "playing") previewClicked(); // exist preview
         waitMessage.hidden = false;
@@ -88,6 +89,7 @@ const sketch = (p) => {
             bgColor: bgColorPicker.value,
             textColor: textColorPicker.value,
             processedText: getResultLinesList(_WIDTH).join(String.fromCharCode(10)),
+            author: authorInput.value,
             rectHeight: textSizeSlider.value/100 * _WIDTH * resultLinesList.length * LINE_HEIGHT_FACTOR,
 
             canvasHeightFactor: [1, 9/16, 16/9][Number(ratioDropdown.value)], // ratio
@@ -128,6 +130,7 @@ const sketch = (p) => {
         } else alert("Something went wrong, please retry later.");
     }
 
+    /*
     function checkTooLong(){
         const linesAmount = getResultLinesList(p.width).length;
         const textRectHeight = textSizeSlider.value/100 * p.width * linesAmount * LINE_HEIGHT_FACTOR;
@@ -136,7 +139,7 @@ const sketch = (p) => {
             return true;
         }
         return false;
-    }
+    }*/
     function setUpTextPosition(){
         const linesAmount = getResultLinesList(p.width).length;
         program.textRectHeight = textSizeSlider.value/100 * p.width * linesAmount * LINE_HEIGHT_FACTOR;
@@ -157,6 +160,7 @@ const sketch = (p) => {
         waitMessage = document.getElementById("wait-message");
 
         textArea = document.getElementById("text-area");
+        authorInput = document.getElementById("author");
         textSizeSlider = document.getElementById("text-size-slider");
         bgColorPicker = document.getElementById("bg-color-picker");
         textColorPicker = document.getElementById("text-color-picker");
@@ -171,8 +175,8 @@ const sketch = (p) => {
 
         createTheCanvas();
         p.frameRate(30);
-        p.textAlign(p.LEFT, p.TOP);
         p.noStroke();
+        p.rectMode(p.CORNER);
     };
 
     const SCROLL_SPEED = 0.33;
@@ -183,16 +187,17 @@ const sketch = (p) => {
     p.draw = () => {
         if (program.status === "idle"){
             renderText();
+            renderName();
         }
         else if (program.status === "playing"){
             renderText();
+            renderName();
 
             // if still waiting
             if (!updateWait()) return;
 
             const bottomOfTextRect = p.height * TOP_PADDING - program.y/100 * p.height + program.textRectHeight;
             if (bottomOfTextRect > p.height * BOTTOM_PADDING){
-                console.log(bottomOfTextRect - p.height * BOTTOM_PADDING);
                 program.y += SCROLL_SPEED;
             } 
             // finished scrolling, but has it wait for the end yet?
@@ -259,11 +264,31 @@ const sketch = (p) => {
         const renderY = p.height * TOP_PADDING - program.y/100 * p.height;
         const linesList = getResultLinesList(p.width);
 
+        p.textAlign(p.LEFT, p.TOP);
         p.background(bgColorPicker.value);
         
         p.fill(textColorPicker.value); 
         p.textFont(fontFamiliesDropdown.value, fSize);
         p.text(linesList.join(String.fromCharCode(10)), p.width * LEFT_PADDING, renderY);
+    }
+
+    function renderName(){
+        const _PADDING_ = 0.02;
+        let nameString = authorInput.value;
+        if (nameString.length === 0) return;
+
+        p.textAlign(p.RIGHT, p.TOP);
+        p.textSize(p.width * 0.05);
+
+        p.fill(bgColorPicker.value);
+        p.rect(
+            p.width, 0, 
+            (_PADDING_*2 + nameString.length*0.028) * -p.width, 
+            (_PADDING_*2 + 0.05) * p.width
+        );
+
+        p.fill(textColorPicker.value);
+        p.text(nameString, p.width * (1 - _PADDING_), p.width * _PADDING_);
     }
 };
 

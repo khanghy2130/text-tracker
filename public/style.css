@@ -41,7 +41,7 @@ button, textarea {
     justify-content: center;
     align-items: flex-start;
 }
-#text-area-container {
+#text-area-container, #author-container {
     width: 100%;
     display: flex !important;
     justify-content: center;
@@ -58,6 +58,9 @@ button, textarea {
     font-size: 20px;
     width: 100%;
     max-width: 400px;
+    padding: 3px;
+}
+#author {
     padding: 3px;
 }
 
