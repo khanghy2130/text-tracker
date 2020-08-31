@@ -43,6 +43,8 @@ const sketch = (p) => {
     }
 
     function previewClicked(){
+        if (checkTooLong()) return;
+
         program.y = 0;
         if (program.status === "idle"){
             previewButton.innerText = "Stop preview";
@@ -59,6 +61,8 @@ const sketch = (p) => {
     }
 
     function startGenerating(){
+        if (checkTooLong()) return;
+
         if (program.status === "playing") previewClicked(); // exist preview
         waitMessage.hidden = false;
         setOptionsVisibility(false);
@@ -124,7 +128,15 @@ const sketch = (p) => {
         } else alert("Something went wrong, please retry later.");
     }
 
-
+    function checkTooLong(){
+        const linesAmount = getResultLinesList(p.width).length;
+        const textRectHeight = textSizeSlider.value/100 * p.width * linesAmount * LINE_HEIGHT_FACTOR;
+        if (textRectHeight > 1200) {
+            alert("The video runtime is too long, please cut out some text or reduce font size to decrease video runtime.")
+            return true;
+        }
+        return false;
+    }
     function setUpTextPosition(){
         const linesAmount = getResultLinesList(p.width).length;
         program.textRectHeight = textSizeSlider.value/100 * p.width * linesAmount * LINE_HEIGHT_FACTOR;
@@ -180,6 +192,7 @@ const sketch = (p) => {
 
             const bottomOfTextRect = p.height * TOP_PADDING - program.y/100 * p.height + program.textRectHeight;
             if (bottomOfTextRect > p.height * BOTTOM_PADDING){
+                console.log(bottomOfTextRect - p.height * BOTTOM_PADDING);
                 program.y += SCROLL_SPEED;
             } 
             // finished scrolling, but has it wait for the end yet?
