@@ -7,13 +7,15 @@ let waitMessage;
 let textArea;
 let authorInput;
 let textSizeSlider;
+let verticalSpacingSlider;
 let bgColorPicker;
 let textColorPicker;
 let fontFamiliesDropdown;
 let ratioDropdown;
 
+
 let program = {
-    UNIQUE_ID : Date.now(),
+    UNIQUE_ID : 0, // new id when generate
     status: "idle", // idle, playing
     y: 0,
     textRectHeight: 0,
@@ -44,8 +46,6 @@ const sketch = (p) => {
     }
 
     function previewClicked(){
-        //if (checkTooLong()) return;
-
         program.y = 0;
         if (program.status === "idle"){
             previewButton.innerText = "Stop preview";
@@ -62,8 +62,6 @@ const sketch = (p) => {
     }
 
     function startGenerating(){
-        //if (checkTooLong()) return;
-
         if (program.status === "playing") previewClicked(); // exist preview
         waitMessage.hidden = false;
         setOptionsVisibility(false);
@@ -75,8 +73,9 @@ const sketch = (p) => {
         const _WIDTH = 576;
         const resultLinesList = getResultLinesList(_WIDTH);
 
+        program.UNIQUE_ID = Date.now(); // new id
         const configs = {
-            id: Date.now(), 
+            id: program.UNIQUE_ID, 
 
             _WIDTH,
             WAIT_FINISH,
@@ -97,18 +96,16 @@ const sketch = (p) => {
             fFamily: fontFamiliesDropdown.value
         };
 
+        // fetching { success: boolean, errorMessage?: string }
         fetch('/generate', {
             method: 'POST', 
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify( configs )
           })
           .then(res => res.json())
           .then(data => {
-            if (data.path === null) throw "no path data";
-            program.downloadPath = data.path;
-            stopGenerating(true);
+            if (!data.success) stopGenerating(false, data.errorMessage);
+            else startWaitng(); // generation started!
           })
           .catch((error) => {
             console.log(error);
@@ -116,7 +113,8 @@ const sketch = (p) => {
           });
     }
 
-    function stopGenerating(success){
+    // called when receives a respond from /status/:id
+    function stopGenerating(success, errorMessage){
         waitMessage.hidden = true;
         setOptionsVisibility(true);
         setButtonsVisibility(true);
@@ -125,21 +123,39 @@ const sketch = (p) => {
 
         if (success){
             let linkEle = document.createElement('a');
-            linkEle.href = program.downloadPath;
+            linkEle.href = "/download/" + program.UNIQUE_ID;
             linkEle.click();
-        } else alert("Something went wrong, please retry later.");
+        } else alert(errorMessage || "Something went wrong");
     }
 
-    /*
-    function checkTooLong(){
-        const linesAmount = getResultLinesList(p.width).length;
-        const textRectHeight = textSizeSlider.value/100 * p.width * linesAmount * LINE_HEIGHT_FACTOR;
-        if (textRectHeight > 1200) {
-            alert("The video runtime is too long, please cut out some text or reduce font size to decrease video runtime.")
-            return true;
-        }
-        return false;
-    }*/
+
+    let intervalID;
+    function startWaitng(){
+        intervalID = setInterval(function(){
+            // fetching { videoIsReady: boolean, errorMessage?: string }
+            fetch('/status/' + program.UNIQUE_ID)
+                .then(res => res.json())
+                .then(data => {
+                    // error?
+                    if (data.errorMessage) stopWating(false, data.errorMessage);
+                    // video is ready?
+                    else if (data.videoIsReady) stopWating(true);
+                    else console.log("Video not ready.");
+                })
+                .catch((error) => {
+                    console.log(error);
+                    stopGenerating(false);
+                });
+        }, 2000);
+    }
+    function stopWating(success, errorMessage){
+        clearInterval(intervalID); // stops interval
+        stopGenerating(success, errorMessage);
+    }
+
+
+
+
     function setUpTextPosition(){
         const linesAmount = getResultLinesList(p.width).length;
         program.textRectHeight = textSizeSlider.value/100 * p.width * linesAmount * LINE_HEIGHT_FACTOR;
@@ -162,6 +178,7 @@ const sketch = (p) => {
         textArea = document.getElementById("text-area");
         authorInput = document.getElementById("author");
         textSizeSlider = document.getElementById("text-size-slider");
+        verticalSpacingSlider = document.getElementById("veritcal-slider");
         bgColorPicker = document.getElementById("bg-color-picker");
         textColorPicker = document.getElementById("text-color-picker");
         fontFamiliesDropdown = document.getElementById("ff-dropdown");
@@ -176,6 +193,7 @@ const sketch = (p) => {
         createTheCanvas();
         p.frameRate(30);
         p.noStroke();
+        p.imageMode(p.CENTER);
         p.rectMode(p.CORNER);
     };
 

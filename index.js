@@ -21,7 +21,7 @@ app.get('/download/:id', function (req, res) {
     const fileName = `${__dirname}/result/final_${req.params.id}.mp4`;
     if (fs.existsSync(fileName)){
         res.download(fileName, () => {
-            // remove file
+            // remove downloaded file from server
             try {
                 fs.unlinkSync(fileName)
             } catch(err) {
@@ -33,17 +33,43 @@ app.get('/download/:id', function (req, res) {
     }
 });
 
+// responds with { success: boolean, errorMessage?: string }
 app.post('/generate', function (req, res) {
     // already generating? respond as fail
     if (isGenerating) {
-        res.json( {path: null} );
+        res.json( {
+            success: false,
+            errorMessage: "Server is busy, please try again later."
+        } );
         return;
     }
 
     console.log("Start generating video...");
     p5Program.configs = req.body;
-    p5Program.res = res;
     p5Program.start();
+
+    res.json( {success: true} );
+});
+
+// responds with { videoIsReady: boolean, errorMessage?: string }
+app.get('/status/:id', function(req, res){
+    // if still generating then not ready
+    if (isGenerating) {
+        res.json( {videoIsReady: false} );
+        return;
+    }
+
+    const fileName = `${__dirname}/result/final_${req.params.id}.mp4`;
+    if (fs.existsSync(fileName)){
+        res.json( {videoIsReady: true} );
+    }
+    // video does not exist
+    else {
+        res.json( {
+            videoIsReady: false,
+            errorMessage: "Can't find the generated video with the given ID."
+        } );
+    }
 });
 
 app.listen(PORT, () => {
@@ -89,8 +115,7 @@ function sketch(p) {
 
         generateVideo(
             framesData,
-            p5Program.configs.id, 
-            p5Program.res
+            p5Program.configs.id
         )
     }
 
@@ -98,6 +123,7 @@ function sketch(p) {
         canvas = p.createCanvas(480, 480);
         p.frameRate(999);
         p.noStroke();
+        p.imageMode(p.CENTER);
         p.noLoop();
     }
     p.draw = () => {
@@ -150,13 +176,14 @@ let p5Instance = p5.createSketch(sketch);
 
 
 // takes array of dataURLs. creates video with ID. responds with download path
-function generateVideo(framesArray, id, res){
-    const fileName = `./result/id_${id}.mp4`;
+function generateVideo(framesArray, id){
+    const rawFileName = `./result/raw_${id}.mp4`;
     const finalFileName = `./result/final_${id}.mp4`;
 
-    mjpeg({ fileName: fileName, ignoreIdenticalFrames: 0 })
+    mjpeg({ fileName: rawFileName, ignoreIdenticalFrames: 0 })
     .then( (recorder) => {
         
+        // adding all frames
         (function addNextFrame(framesList){
             if (framesList.length === 0) finalize();
             else {
@@ -175,20 +202,18 @@ function generateVideo(framesArray, id, res){
                     console.log("video finalized...");
     
                     let command = new ffmpegCommand();
-                    command.input(fileName);
+                    command.input(rawFileName);
                     command.videoCodec("libx264");
                     command.videoBitrate("1000k", true);
                     command.on("end", function() {
+                        isGenerating = false;
+                        console.log("mp4 ready!");
                         // remove file input video file
                         try {
-                            fs.unlinkSync(fileName)
+                            fs.unlinkSync(rawFileName)
                         } catch(err) {
                             console.error(err)
                         }
-    
-                        console.log("mp4 ready!");
-                        isGenerating = false;
-                        res.json( {path: `/download/${id}`} );
                     });
                     command.on("error", handleError);
                     command.output(finalFileName);
@@ -202,6 +227,5 @@ function generateVideo(framesArray, id, res){
     function handleError(err){
         console.log(err);
         isGenerating = false;
-        res.json( {path: null} );
     }
 }
