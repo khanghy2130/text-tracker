@@ -13,6 +13,9 @@ let textColorPicker;
 let fontFamiliesDropdown;
 let ratioDropdown;
 
+// image
+let faderImage;
+
 // global functions
 function setOptionsVisibility(shown){
     document.getElementById("options-container").style.display = (shown)? "flex" : "none";
@@ -321,7 +324,15 @@ function setButtonsVisibility(shown){
 
 let program = {
     UNIQUE_ID : 0, // new id when generate
-    status: "idle" // idle, playing, generating
+    status: "idle", // idle, playing, generating
+
+    // for playing scene
+    wordsListsArray: [], // array of arrays of words => used to create rendering data in real time (array of strings)
+    lineIndex: 0,
+    wordIndex: 0,
+    lineTransitionAP: 0, // AP = animation progress
+    cameraX: 0,
+    waitCountdown: 0 // various wait times (end of line? how long is the word?)
 };
 
 const sketch = (p) => {
@@ -440,7 +451,9 @@ const sketch = (p) => {
         }
     }
     
-
+    p.preload = () => {
+        faderImage = p.loadImage("./fader.png");
+    };
     p.setup = () => {
         // get html elements
         previewButton = document.getElementById("btn-preview");
@@ -450,7 +463,7 @@ const sketch = (p) => {
         textArea = document.getElementById("text-area");
         authorInput = document.getElementById("author");
         textSizeSlider = document.getElementById("text-size-slider");
-        verticalSpacingSlider = document.getElementById("veritcal-slider");
+        verticalSpacingSlider = document.getElementById("vertical-slider");
         bgColorPicker = document.getElementById("bg-color-picker");
         textColorPicker = document.getElementById("text-color-picker");
         fontFamiliesDropdown = document.getElementById("ff-dropdown");
@@ -460,7 +473,7 @@ const sketch = (p) => {
         previewButton.onclick = previewClicked;
         //////generateButton.onclick = startGenerating;
         ratioDropdown.onchange = createTheCanvas;
-
+        textArea.value = "Line 1 ...\nLine 2...\nLine 3..."
 
         createTheCanvas();
         p.frameRate(30);
@@ -470,9 +483,9 @@ const sketch = (p) => {
     };
 
     // const
-    const LEFT_PADDING = 0.03;
+    const LEFT_PADDING = 2;
 
-    function _(num) { return num/100 * p.width; }
+    function _(num, isHeight) { return num/100 * (isHeight? p.height : p.width); }
     p.draw = () => {
         p.textFont(fontFamiliesDropdown.value, _(textSizeSlider.value));
         p.textAlign(p.LEFT, p.TOP);
@@ -480,8 +493,26 @@ const sketch = (p) => {
         if (program.status === "idle"){
             p.background(bgColorPicker.value);
             const linesList = textArea.value.split(String.fromCharCode(10));
-            
-            
+
+            p.push();
+            // move camera to the right if last line is long
+            const limitWidth = _(90);
+            const lastLineWidth = p.textWidth(linesList[linesList.length - 1]);
+            if (lastLineWidth > limitWidth) p.translate(limitWidth - lastLineWidth, 0);
+
+            // render idle input text
+            for (let i=0; i < linesList.length; i++){
+                let textLine = linesList[linesList.length - 1 - i]; // inversed
+                p.text(
+                    textLine,
+                    _(LEFT_PADDING),
+                    _(50, true) - _(verticalSpacingSlider.value * i)
+                );
+            }
+            p.pop();
+
+            p.tint("yellow");
+            p.image(faderImage, _(50), _(25, true), _(105), _(50, true));
 
             renderName();
         }
