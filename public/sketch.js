@@ -484,6 +484,7 @@ const sketch = (p) => {
 
     // const
     const LEFT_PADDING = 2;
+    const BLINK_DURATION = 30;
 
     function _(num, isHeight) { return num/100 * (isHeight? p.height : p.width); }
     p.draw = () => {
@@ -503,8 +504,9 @@ const sketch = (p) => {
             // render idle input text
             for (let i=0; i < linesList.length; i++){
                 let textLine = linesList[linesList.length - 1 - i]; // inversed
+                let blinkingLine = (i === 0 && p.frameCount % BLINK_DURATION < BLINK_DURATION/2) ? "|" : "";
                 p.text(
-                    textLine,
+                    textLine + blinkingLine,
                     _(LEFT_PADDING),
                     _(50, true) - _(verticalSpacingSlider.value * i)
                 );
@@ -517,6 +519,8 @@ const sketch = (p) => {
             renderName();
         }
         else if (program.status === "playing"){
+            p.background(bgColorPicker.value);
+
             renderName();
         }
         else if (program.status === "generating"){
@@ -542,17 +546,10 @@ const sketch = (p) => {
         let nameString = authorInput.value;
         if (nameString.length === 0) return;
 
-        p.textAlign(p.RIGHT, p.TOP);
+        p.textAlign(p.RIGHT, p.BOTTOM);
         p.textSize(_(5));
-        p.fill(bgColorPicker.value);
-        p.rect(
-            p.width, 0, 
-            -_(_PADDING_*2) - p.textWidth(nameString), 
-            _(_PADDING_*2 + 5)
-        );
-
         p.fill(textColorPicker.value);
-        p.text(nameString, _(100 - _PADDING_), _(_PADDING_));
+        p.text(nameString, _(100 - _PADDING_), _(100 - _PADDING_, true));
     }
 };
 
