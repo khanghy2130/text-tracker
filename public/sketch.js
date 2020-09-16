@@ -321,6 +321,15 @@ function setButtonsVisibility(shown){
 // };
 
 
+// const
+const LEFT_PADDING = 2; // for main text
+const LIMIT_WIDTH = 85; // percent of width before scrolling right
+const BLINK_DURATION = 30; // smaller is faster
+const _PADDING_ = 1.5; // for name text
+
+const CAMERA_X_SPEED = 2;
+const END_LINE_WAIT = 17; // wait duration when a line is done
+const NEXT_LINE_DURATION = 15; // duration of animation moving to next line
 
 let program = {
     UNIQUE_ID : 0, // new id when generate
@@ -330,7 +339,7 @@ let program = {
     wordsListsArray: [], // array of arrays of words => used to create rendering data in real time (array of strings)
     lineIndex: 0,
     wordIndex: 0,
-    lineTransitionAP: 0, // AP = animation progress
+    goingToNextLine: false, // true when animating to next line
     cameraX: 0,
     waitCountdown: 0 // various wait times (end of line? how long is the word?)
 };
@@ -443,6 +452,13 @@ const sketch = (p) => {
             waitMessage.hidden = true;
             setOptionsVisibility(false);
             setButtonsVisibility(true);
+
+            const linesList = textArea.value.split(String.fromCharCode(10));
+            program.wordsListsArray = linesList.map(str => str.split(" "));
+            program.lineIndex = 0;
+            program.wordIndex = -1; // before 1st word
+            program.cameraX = 0;
+            program.waitCountdown = END_LINE_WAIT; // initial wait
         }
         else if (sceneName === "generating"){
             waitMessage.hidden = false;
@@ -473,7 +489,7 @@ const sketch = (p) => {
         previewButton.onclick = previewClicked;
         //////generateButton.onclick = startGenerating;
         ratioDropdown.onchange = createTheCanvas;
-        textArea.value = "Line 1 ...\nLine 2...\nLine 3..."
+        textArea.value = "Click Preview to play animation of this sample texts.\nReplace this with your own\ntexts in the options."
 
         createTheCanvas();
         p.frameRate(30);
@@ -482,9 +498,6 @@ const sketch = (p) => {
         p.rectMode(p.CORNER);
     };
 
-    // const
-    const LEFT_PADDING = 2;
-    const BLINK_DURATION = 30;
 
     function _(num, isHeight) { return num/100 * (isHeight? p.height : p.width); }
     p.draw = () => {
@@ -493,14 +506,15 @@ const sketch = (p) => {
 
         if (program.status === "idle"){
             p.background(bgColorPicker.value);
-            const linesList = textArea.value.split(String.fromCharCode(10));
 
             p.push();
             // move camera to the right if last line is long
-            const limitWidth = _(90);
+            const limitWidth = _(LIMIT_WIDTH);
+            const linesList = textArea.value.split(String.fromCharCode(10));
             const lastLineWidth = p.textWidth(linesList[linesList.length - 1]);
             if (lastLineWidth > limitWidth) p.translate(limitWidth - lastLineWidth, 0);
 
+            p.fill(textColorPicker.value);
             // render idle input text
             for (let i=0; i < linesList.length; i++){
                 let textLine = linesList[linesList.length - 1 - i]; // inversed
@@ -513,7 +527,8 @@ const sketch = (p) => {
             }
             p.pop();
 
-            p.tint("yellow");
+            // fader
+            p.tint(bgColorPicker.value); 
             p.image(faderImage, _(50), _(25, true), _(105), _(50, true));
 
             renderName();
@@ -521,6 +536,13 @@ const sketch = (p) => {
         else if (program.status === "playing"){
             p.background(bgColorPicker.value);
 
+            p.push();
+            renderTextsPlaying();
+            p.pop();
+
+            // fader
+            p.tint(bgColorPicker.value);
+            p.image(faderImage, _(50), _(25, true), _(105), _(50, true));
             renderName();
         }
         else if (program.status === "generating"){
@@ -536,13 +558,78 @@ const sketch = (p) => {
         }
     };
 
-    function renderText() {
-        const linesList = textArea.value.split(String.fromCharCode(10));
+    function renderTextsPlaying() {
+        const masterArr = program.wordsListsArray;
+        let currentLine = masterArr[program.lineIndex];
 
+        // vertical scroll
+        if (program.goingToNextLine){
+            const animationProgress = p.map(
+                program.waitCountdown, 
+                0, NEXT_LINE_DURATION,
+                0, Math.PI/2
+            );
+            p.translate(0, -_(p.cos(animationProgress) * verticalSpacingSlider.value));
+        }
+        // horizontal scroll
+        p.translate(-_(program.cameraX), 0);
+        // update cameraX
+        const lastLineWidth = p.textWidth(currentLine.slice(0, program.wordIndex + 1).join(" "));
+        if (_(program.cameraX) < lastLineWidth - _(LIMIT_WIDTH)) program.cameraX += CAMERA_X_SPEED;
+
+        // render
+        p.fill(textColorPicker.value);
+        for (let i=0; i <= program.lineIndex; i++){
+            const wordsList = masterArr[program.lineIndex - i]; // inversed order
+            let textLine;
+
+            if (i === 0){ // current line?
+                let blinkingLine = (p.frameCount % BLINK_DURATION < BLINK_DURATION/2) ? "|" : "";
+                textLine = wordsList.slice(0, program.wordIndex + 1).join(" ") + blinkingLine;
+            }
+            else textLine = wordsList.join(" ");
+
+            p.text(
+                textLine,
+                _(LEFT_PADDING),
+                _(50, true) - _(verticalSpacingSlider.value * i)
+            );
+        }
+
+        // done waiting? => next action
+        if (--program.waitCountdown <= 0){
+            // just moved to a new line?
+            if (program.goingToNextLine){
+                program.goingToNextLine = false; // reset
+                program.lineIndex++;
+                program.wordIndex = -1;
+                program.cameraX = 0;
+            }
+
+            // still has more words?
+            else if (program.wordIndex < currentLine.length - 1){
+                program.wordIndex++; // next word
+                const lettersAmount = currentLine[program.wordIndex].length;
+                program.waitCountdown =  (7 + lettersAmount) * END_LINE_WAIT * 0.07;
+
+                // extra wait if is last word in the line
+                if (program.wordIndex === currentLine.length - 1){
+                    program.waitCountdown += END_LINE_WAIT;
+                }
+            }
+
+            // still has more lines? => set up next line animation
+            else if (program.lineIndex < masterArr.length - 1){
+                program.waitCountdown = NEXT_LINE_DURATION;
+                program.goingToNextLine = true;
+            }
+
+            // end of animation
+            else previewClicked();
+        }
     }
 
     function renderName(){
-        const _PADDING_ = 1.5;
         let nameString = authorInput.value;
         if (nameString.length === 0) return;
 
