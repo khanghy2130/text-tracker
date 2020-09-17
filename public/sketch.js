@@ -491,7 +491,7 @@ const sketch = (p) => {
         previewButton.onclick = previewClicked;
         //////generateButton.onclick = startGenerating;
         ratioDropdown.onchange = createTheCanvas;
-        textArea.value = "Click Preview to play animation of this sample texts.\nUse UNDERSCORES__ to wait longer.\nSee more options below."
+        textArea.value = "Click Preview to play animation of this sample texts.\nUse UNDERSCORES__ to wait longer.\n\nSee more options below."
 
         createTheCanvas();
         p.frameRate(30);
@@ -572,7 +572,7 @@ const sketch = (p) => {
                 0, NEXT_LINE_DURATION,
                 0, Math.PI/2
             );
-            p.translate(0, -_(p.cos(animationProgress) * verticalSpacingSlider.value));
+            p.translate(0, -_(p.cos(animationProgress) * verticalSpacingSlider.value * program.scrollLinesAmount));
         }
         // horizontal scroll
         p.translate(-_(program.cameraX), 0);
@@ -580,7 +580,6 @@ const sketch = (p) => {
         const lastLineWidth = p.textWidth(currentLine.slice(0, program.wordIndex + 1).join(" "));
         if (_(program.cameraX) < lastLineWidth - _(LIMIT_WIDTH)) {
             const DISTANCE = lastLineWidth - _(LIMIT_WIDTH) - _(program.cameraX);
-            console.log(DISTANCE * 0.01);
             program.cameraX += p.max(DISTANCE * 0.02, CAMERA_X_SPEED_LIMIT);
         }
         
@@ -609,7 +608,7 @@ const sketch = (p) => {
             // just moved to a new line?
             if (program.goingToNextLine){
                 program.goingToNextLine = false; // reset
-                program.lineIndex++;
+                program.lineIndex += program.scrollLinesAmount;
                 program.wordIndex = -1;
                 program.cameraX = 0;
             }
@@ -631,6 +630,13 @@ const sketch = (p) => {
             else if (program.lineIndex < masterArr.length - 1){
                 program.waitCountdown = NEXT_LINE_DURATION;
                 program.goingToNextLine = true;
+                
+                // count empty lines to scroll past
+                program.scrollLinesAmount = 1;
+                for (let i = program.lineIndex + 1; i < masterArr.length; i++){
+                    if (masterArr[i][0].length === 0) program.scrollLinesAmount++;
+                    else break;
+                }
             }
 
             // end of animation
