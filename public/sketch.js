@@ -323,13 +323,14 @@ function setButtonsVisibility(shown){
 
 // const
 const LEFT_PADDING = 2; // for main text
-const LIMIT_WIDTH = 85; // percent of width before scrolling right
+const LIMIT_WIDTH = 80; // percent of width before scrolling right
 const BLINK_DURATION = 30; // smaller is faster
 const _PADDING_ = 1.5; // for name text
 
-const CAMERA_X_SPEED = 2;
-const END_LINE_WAIT = 17; // wait duration when a line is done
-const NEXT_LINE_DURATION = 15; // duration of animation moving to next line
+const CAMERA_X_SPEED_LIMIT = 0.1;
+const END_LINE_WAIT = 25; // wait duration when a line is done
+const LETTER_DURATION_FACTOR = 1.7;
+const NEXT_LINE_DURATION = 17; // duration of animation moving to next line
 
 let program = {
     UNIQUE_ID : 0, // new id when generate
@@ -458,6 +459,7 @@ const sketch = (p) => {
             program.lineIndex = 0;
             program.wordIndex = -1; // before 1st word
             program.cameraX = 0;
+            program.goingToNextLine = false;
             program.waitCountdown = END_LINE_WAIT; // initial wait
         }
         else if (sceneName === "generating"){
@@ -489,7 +491,7 @@ const sketch = (p) => {
         previewButton.onclick = previewClicked;
         //////generateButton.onclick = startGenerating;
         ratioDropdown.onchange = createTheCanvas;
-        textArea.value = "Click Preview to play animation of this sample texts.\nReplace this with your own\ntexts in the options."
+        textArea.value = "Click Preview to play animation of this sample texts.\nUse UNDERSCORES__ to wait longer.\nSee more options below."
 
         createTheCanvas();
         p.frameRate(30);
@@ -517,7 +519,8 @@ const sketch = (p) => {
             p.fill(textColorPicker.value);
             // render idle input text
             for (let i=0; i < linesList.length; i++){
-                let textLine = linesList[linesList.length - 1 - i]; // inversed
+                let textLine = linesList[linesList.length - 1 - i]; // inversed order
+                textLine = textLine.replace(/_/g, ''); // remove all _
                 let blinkingLine = (i === 0 && p.frameCount % BLINK_DURATION < BLINK_DURATION/2) ? "|" : "";
                 p.text(
                     textLine + blinkingLine,
@@ -575,8 +578,12 @@ const sketch = (p) => {
         p.translate(-_(program.cameraX), 0);
         // update cameraX
         const lastLineWidth = p.textWidth(currentLine.slice(0, program.wordIndex + 1).join(" "));
-        if (_(program.cameraX) < lastLineWidth - _(LIMIT_WIDTH)) program.cameraX += CAMERA_X_SPEED;
-
+        if (_(program.cameraX) < lastLineWidth - _(LIMIT_WIDTH)) {
+            const DISTANCE = lastLineWidth - _(LIMIT_WIDTH) - _(program.cameraX);
+            console.log(DISTANCE * 0.01);
+            program.cameraX += p.max(DISTANCE * 0.02, CAMERA_X_SPEED_LIMIT);
+        }
+        
         // render
         p.fill(textColorPicker.value);
         for (let i=0; i <= program.lineIndex; i++){
@@ -589,6 +596,7 @@ const sketch = (p) => {
             }
             else textLine = wordsList.join(" ");
 
+            textLine = textLine.replace(/_/g, ''); // remove all _
             p.text(
                 textLine,
                 _(LEFT_PADDING),
@@ -609,8 +617,9 @@ const sketch = (p) => {
             // still has more words?
             else if (program.wordIndex < currentLine.length - 1){
                 program.wordIndex++; // next word
+                const customeWaitAmount = currentLine[program.wordIndex].split("_").length-1;
                 const lettersAmount = currentLine[program.wordIndex].length;
-                program.waitCountdown =  (7 + lettersAmount) * END_LINE_WAIT * 0.07;
+                program.waitCountdown =  (4 + lettersAmount) * LETTER_DURATION_FACTOR + (customeWaitAmount * LETTER_DURATION_FACTOR * 10);
 
                 // extra wait if is last word in the line
                 if (program.wordIndex === currentLine.length - 1){
