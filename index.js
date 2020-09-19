@@ -89,12 +89,12 @@ let p5Program = {}; // contains configs, res, and start()
 
 function sketch(p) {
     let canvas;
-    let y = 0;
     let framesData = [];
+
+    let i = 0; ///////
 
     p5Program.start = function(){
         isGenerating = true;
-        y = 0;
         framesData = [];
 
         // setup configs
@@ -106,12 +106,6 @@ function sketch(p) {
 
     function stopAndPassFrames(){
         p.noLoop();
-
-        // adding 1st and last frame
-        for (let i=0; i < p5Program.configs.WAIT_FINISH; i++){
-            framesData.unshift(framesData[0]);
-            framesData.push(framesData[framesData.length - 1]);
-        }
 
         generateVideo(
             framesData,
@@ -132,42 +126,20 @@ function sketch(p) {
             return;
         }
 
-        renderText();
-        renderName();
-        
-        const bottomOfTextRect = p.height * p5Program.configs.TOP_PADDING - y/100 * p.height + p5Program.configs.rectHeight;
-        // if y is below OR framesData has nothing
-        if (bottomOfTextRect > p.height * p5Program.configs.BOTTOM_PADDING || framesData.length === 0){
-            y += p5Program.configs.SCROLL_SPEED;
+        if (i < 100){
+            i++;
+            const r = p.min(p.width, p.height) * 0.2;
+            const t = p.frameCount * 0.07;
+            p.fill(250);
+            p.circle(
+                p.width/2 + p.cos(t) * r,
+                p.height/2 + p.sin(t) * r,
+                r * 0.3
+            );
+            p.background(0, 0, 0, 15);
+
             framesData.push(canvas.canvas.toDataURL("image/jpeg"));
         } else stopAndPassFrames();
-    }
-
-    function renderText(){
-        const renderY = p.height * p5Program.configs.TOP_PADDING - y/100 * p.height;
-        p.textAlign(p.LEFT, p.TOP);
-        p.background(p5Program.configs.bgColor);
-        p.textFont(p5Program.configs.fFamily, p5Program.configs.fSize);
-        p.fill(p5Program.configs.textColor);
-        p.text(p5Program.configs.processedText, p.width * p5Program.configs.LEFT_PADDING, renderY);
-    }
-    function renderName(){
-        const _PADDING_ = 0.02;
-        let nameString = p5Program.configs.author;
-        if (nameString.length === 0) return;
-
-        p.textAlign(p.RIGHT, p.TOP);
-        p.textSize(p.width * 0.05);
-
-        p.fill(p5Program.configs.bgColor);
-        p.rect(
-            p.width, 0, 
-            (_PADDING_*2 + nameString.length*0.028) * -p.width, 
-            (_PADDING_*2 + 0.05) * p.width
-        );
-        
-        p.fill(p5Program.configs.textColor);
-        p.text(nameString, p.width * (1 - _PADDING_), p.width * _PADDING_);
     }
 }
 
@@ -177,12 +149,14 @@ let p5Instance = p5.createSketch(sketch);
 
 // takes array of dataURLs. creates video with ID. responds with download path
 function generateVideo(framesArray, id){
-    const rawFileName = `./result/raw_${id}.mp4`;
-    const finalFileName = `./result/final_${id}.mp4`;
+    const rawVideoFile = `./result/raw_${id}.mp4`;
+    //////////////const audioFile = `./audio/audio_${id}.mp3`;
+    const finalVideoFile = `./result/final_${id}.mp4`;
 
-    mjpeg({ fileName: rawFileName, ignoreIdenticalFrames: 0 })
+    mjpeg({ fileName: rawVideoFile, ignoreIdenticalFrames: 0 })
     .then( (recorder) => {
         
+        console.log("Adding all frames...");
         // adding all frames
         (function addNextFrame(framesList){
             if (framesList.length === 0) finalize();
@@ -202,7 +176,8 @@ function generateVideo(framesArray, id){
                     console.log("video finalized...");
     
                     let command = new ffmpegCommand();
-                    command.input(rawFileName);
+                    command.input(rawVideoFile);
+                    /////////////command.input(audioFile);
                     command.videoCodec("libx264");
                     command.videoBitrate("1000k", true);
                     command.on("end", function() {
@@ -210,13 +185,13 @@ function generateVideo(framesArray, id){
                         console.log("mp4 ready!");
                         // remove file input video file
                         try {
-                            fs.unlinkSync(rawFileName)
+                            fs.unlinkSync(rawVideoFile)
                         } catch(err) {
                             console.error(err)
                         }
                     });
                     command.on("error", handleError);
-                    command.output(finalFileName);
+                    command.output(finalVideoFile);
                     command.run();
                 })
                 .catch(handleError)

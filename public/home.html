@@ -30,6 +30,7 @@
 
         <div id="author-container">
           <input type="text" placeholder="Name" id="author">
+          <button id="audio-button"></button>
         </div>
 
         <div>
@@ -73,6 +74,15 @@
               <option value=2>9:16</option>
           </select>
         </div>
+    </div>
+
+    <div id="audio-modal">
+      <div>
+        <h6>Warning: Any changes to the main text input will REMOVE the recorded audio.</h6>
+        <p>When you record an audio, the recording will start after a countdown and end when the animation ends. Once you have recorded, previewing the animation will also play the audio.</p>
+        <button onclick="setUpRecordMode()">Record new audio</button>
+        <button onclick="closeAudioModal()">Close</button>
+      </div>
     </div>
 
     <script src="sketch.js"></script>

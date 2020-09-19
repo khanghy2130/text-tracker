@@ -6,6 +6,9 @@ let waitMessage;
 
 let textArea;
 let authorInput;
+let audioButton;
+let audioModal;
+
 let textSizeSlider;
 let verticalSpacingSlider;
 let bgColorPicker;
@@ -18,10 +21,26 @@ let faderImage;
 
 // global functions
 function setOptionsVisibility(shown){
-    document.getElementById("options-container").style.display = (shown)? "flex" : "none";
+    document.getElementById("options-container").style.display = shown? "flex" : "none";
 }
 function setButtonsVisibility(shown){
-    document.getElementById("main-buttons-container").style.display = (shown)? "flex" : "none";
+    document.getElementById("main-buttons-container").style.display = shown? "flex" : "none";
+}
+function setAudioBtnText(){
+    audioButton.innerText = program.hasAudio ? "Audio recorded" : "No audio recorded"
+}
+
+function audioBtnClicked(){
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            audioModal.style.display = "flex";
+        })
+        .catch(function(err) {
+            alert("Microphone permission was denied.");
+        });
+}
+function closeAudioModal(){
+    audioModal.style.display = "none";
 }
 
 
@@ -33,9 +52,9 @@ const _PADDING_ = 1.5; // for name text
 
 const CAMERA_X_SPEED_ACC = 0.035;
 const CAMERA_X_SPEED_LIMIT = 0.6;
-const END_LINE_WAIT = 25; // wait duration when a line is done
-const LETTER_DURATION_FACTOR = 1.7;
-const NEXT_LINE_DURATION = 17; // duration of animation moving to next line
+const END_LINE_WAIT = 20; // wait duration when a line is done
+const LETTER_DURATION_FACTOR = 2.0;
+const NEXT_LINE_DURATION = 12; // duration of animation moving to next line
 
 let program = {
     UNIQUE_ID : 0, // new id when generate
@@ -47,7 +66,9 @@ let program = {
     wordIndex: 0,
     goingToNextLine: false, // true when animating to next line
     cameraX: 0,
-    waitCountdown: 0 // various wait times (end of line? how long is the word?)
+    waitCountdown: 0, // various wait times (end of line? how long is the word?)
+
+    hasAudio: false
 };
 
 const sketch = (p) => {
@@ -185,6 +206,9 @@ const sketch = (p) => {
 
         textArea = document.getElementById("text-area");
         authorInput = document.getElementById("author");
+        audioButton = document.getElementById("audio-button");
+        audioModal = document.getElementById("audio-modal");
+
         textSizeSlider = document.getElementById("text-size-slider");
         verticalSpacingSlider = document.getElementById("vertical-slider");
         bgColorPicker = document.getElementById("bg-color-picker");
@@ -194,9 +218,12 @@ const sketch = (p) => {
 
         // element events
         previewButton.onclick = previewClicked;
-        //////generateButton.onclick = startGenerating;
+        generateButton.onclick = startGenerating;
         ratioDropdown.onchange = createTheCanvas;
         textArea.value = "Click Preview to play animation of this sample texts.\nUse UNDERSCORES__ to wait longer.\n\nSee more options below."
+        audioButton.onclick = audioBtnClicked;
+        setAudioBtnText();
+        closeAudioModal();
 
         createTheCanvas();
         p.frameRate(30);
