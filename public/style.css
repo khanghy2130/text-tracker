@@ -22,6 +22,16 @@ button, textarea {
     box-shadow: 2px 2px 2px black;
 }
 
+#recording-control {
+    margin-top: 10px;
+    align-items: center;
+}
+#recording-control > button {
+    margin-left: 20px;
+    font-size: 15px;
+    padding: 5px 10px;
+}
+
 #wait-message {
     font-size: 20px;
     margin: 20px 0;
@@ -74,6 +84,9 @@ button, textarea {
     font-size: 14px;
     padding: 3px;
 }
+.audio-added {
+    background-color: rgb(40, 255, 20);
+}
 
 #audio-modal {
     position: fixed;
@@ -87,6 +100,9 @@ button, textarea {
     display: none;
 }
 #audio-modal > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     max-width: 600px;
     width: 95vw;
     background-color: rgb(188, 117, 246);

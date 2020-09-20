@@ -26,25 +26,21 @@ function setOptionsVisibility(shown){
 function setButtonsVisibility(shown){
     document.getElementById("main-buttons-container").style.display = shown? "flex" : "none";
 }
+function setRecordingControlVisibility(shown){
+    document.getElementById("recording-control").style.display = shown? "flex" : "none";
+}
 function setAudioBtnText(){
-    audioButton.innerText = program.hasAudio ? "Audio recorded" : "No audio recorded"
+    audioButton.innerText = program.hasAudio ? "Audio recorded" : "No audio recorded";
+    if (program.hasAudio) audioButton.classList.add("audio-added");
+    else audioButton.classList.remove("audio-added");
 }
-
-function audioBtnClicked(){
-    navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(function(stream) {
-            audioModal.style.display = "flex";
-        })
-        .catch(function(err) {
-            alert("Microphone permission was denied.");
-        });
-}
-function closeAudioModal(){
-    audioModal.style.display = "none";
+function setAudioModalVisibility(shown){
+    audioModal.style.display = shown ? "flex" : "none";
 }
 
 
 // const
+const _WIDTH = 576; // for generation
 const LEFT_PADDING = 2; // for main text
 const LIMIT_WIDTH = 80; // percent of width before scrolling right
 const BLINK_DURATION = 30; // smaller is faster
@@ -56,9 +52,10 @@ const END_LINE_WAIT = 20; // wait duration when a line is done
 const LETTER_DURATION_FACTOR = 2.0;
 const NEXT_LINE_DURATION = 12; // duration of animation moving to next line
 
+let recorder;
 let program = {
     UNIQUE_ID : 0, // new id when generate
-    status: "idle", // idle, playing, generating
+    status: "idle", // idle, playing, recording, finalizing, generating
 
     // for playing scene
     wordsListsArray: [], // array of arrays of words => used to create rendering data in real time (array of strings)
@@ -68,7 +65,11 @@ let program = {
     cameraX: 0,
     waitCountdown: 0, // various wait times (end of line? how long is the word?)
 
-    hasAudio: false
+    isRecording: false,
+    recordingCountdown: 0, // frameRate * 3
+    hasAudio: false,
+    audioFile: null,
+    audioPlayer: null
 };
 
 const sketch = (p) => {
@@ -83,26 +84,30 @@ const sketch = (p) => {
         if (program.status === "idle"){
             previewButton.innerText = "Stop preview";
             setupScene("playing");
+
+            if (program.hasAudio) {
+                program.audioPlayer.currentTime = 0;
+                program.audioPlayer.play();
+            }
         }
         else if (program.status === "playing") {
             previewButton.innerText = "Preview";
             setOptionsVisibility(true);
             setupScene("idle");
+
+            if (program.hasAudio) program.audioPlayer.pause();
         }
     }
+
 
     function startGenerating(){
         if (program.status === "playing") previewClicked(); // exist preview
         setupScene("generating");
 
         // send configs
-        const _WIDTH = 576;
-
         program.UNIQUE_ID = Date.now(); // new id
         const configs = {
-            id: program.UNIQUE_ID, 
-
-            _WIDTH,
+            id: program.UNIQUE_ID,
 
             bgColor: bgColorPicker.value,
             textColor: textColorPicker.value,
@@ -131,7 +136,6 @@ const sketch = (p) => {
             stopGenerating(false);
           });
     }
-
     // called when receives a respond from /status/:id
     function stopGenerating(success, errorMessage){
         setupScene("idle");
@@ -168,18 +172,77 @@ const sketch = (p) => {
         stopGenerating(success, errorMessage);
     }
 
+    function removeAudio() {
+        if (program.hasAudio){
+            program.hasAudio = false;
+            setAudioBtnText();
+        }
+    }
+    function cancelRecording() {
+        setupScene("canceling");
+        stopRecording(([buffer, blob]) => {
+            console.log("Recording canceled.");
+            setupScene("idle");
+        }, (err) => {
+            console.log(err);
+            alert("Failed to finalize audio.");
+        });
+    }
+
     function setupScene(sceneName){
         program.status = sceneName;
         if (sceneName === "idle"){
+            setAudioBtnText();
             waitMessage.hidden = true;
+            setRecordingControlVisibility(false);
             setOptionsVisibility(true);
             setButtonsVisibility(true);
         }
         else if (sceneName === "playing"){
-            waitMessage.hidden = true;
             setOptionsVisibility(false);
             setButtonsVisibility(true);
 
+            setupAnimation();
+        }
+        else if (sceneName === "recording"){
+            // recording control will be shown when countdown is done
+            setOptionsVisibility(false);
+            setButtonsVisibility(false);
+
+            program.isRecording = false;
+            program.recordingCountdown = 30 * 3;
+            setAudioModalVisibility(false);
+
+            setupAnimation();
+        }
+        if (program.status === "finalizing"){
+            setRecordingControlVisibility(false);
+            program.isRecording = false;
+
+            stopRecording(([buffer, blob]) => {
+                console.log("Successfully finalized audio.");
+
+                // set properties for program object
+                program.audioFile = new File(buffer, `audio.mp3`, {
+                    type: blob.type,
+                    lastModified: Date.now()
+                });
+                program.audioPlayer = new Audio(URL.createObjectURL(program.audioFile));
+                program.hasAudio = true;
+                setupScene("idle");
+                alert("Audio added, click Preview to play.");
+            }, (err) => {
+                console.log(err);
+                alert("Failed to finalize audio.");
+            });
+        }
+        else if (sceneName === "generating"){
+            waitMessage.hidden = false;
+            setOptionsVisibility(false);
+            setButtonsVisibility(false);
+        }
+
+        function setupAnimation(){
             const linesList = textArea.value.split(String.fromCharCode(10));
             program.wordsListsArray = linesList.map(str => str.split(" "));
             program.lineIndex = 0;
@@ -187,11 +250,6 @@ const sketch = (p) => {
             program.cameraX = 0;
             program.goingToNextLine = false;
             program.waitCountdown = END_LINE_WAIT; // initial wait
-        }
-        else if (sceneName === "generating"){
-            waitMessage.hidden = false;
-            setOptionsVisibility(false);
-            setButtonsVisibility(false);
         }
     }
     
@@ -217,19 +275,24 @@ const sketch = (p) => {
         ratioDropdown = document.getElementById("ratio-dropdown");
 
         // element events
+        document.getElementById("record-audio-button").onclick = () => {setupScene("recording")};
+        document.getElementById("remove-audio-button").onclick = removeAudio;
+        document.getElementById("cancel-recording-button").onclick = cancelRecording;
         previewButton.onclick = previewClicked;
         generateButton.onclick = startGenerating;
         ratioDropdown.onchange = createTheCanvas;
-        textArea.value = "Click Preview to play animation of this sample texts.\nUse UNDERSCORES__ to wait longer.\n\nSee more options below."
-        audioButton.onclick = audioBtnClicked;
-        setAudioBtnText();
-        closeAudioModal();
-
+        textArea.value = "Click Preview to play animation of this sample texts.\nUse UNDERSCORES__ to wait longer.\n\nSee more options below.";
+        textArea.onchange = removeAudio;
+        
+        setAudioModalVisibility(false);
+        recorder = new MicRecorder({bitRate: 128});
+        
         createTheCanvas();
         p.frameRate(30);
         p.noStroke();
         p.imageMode(p.CENTER);
         p.rectMode(p.CORNER);
+        setupScene("idle");
     };
 
 
@@ -268,7 +331,8 @@ const sketch = (p) => {
 
             renderName();
         }
-        else if (program.status === "playing"){
+        // playing or recording (after countdown)
+        else if (program.status === "playing" || (program.status === "recording" && program.isRecording)){
             p.background(bgColorPicker.value);
 
             p.push();
@@ -279,6 +343,34 @@ const sketch = (p) => {
             p.tint(bgColorPicker.value);
             p.image(faderImage, _(50), _(25, true), _(105), _(50, true));
             renderName();
+        }
+        // still counting down to record
+        else if (program.status === "recording" && !program.isRecording){
+            p.background(30);
+            p.fill(250);
+            p.textAlign(p.CENTER, p.CENTER);
+            p.textSize(_(25));
+            p.text(p.ceil(program.recordingCountdown / 30), p.width/2, p.height/2);
+
+            program.recordingCountdown--;
+            if (program.recordingCountdown === 0){
+                startRecording(() => {
+                    program.isRecording = true; // starting animation
+                    setRecordingControlVisibility(true);
+                    console.log("Started recording...");
+                }, (err) => {
+                    console.log(err);
+                    setupScene("idle");
+                    alert("Couldn't start recording, please check the mic access.");
+                });
+            }
+        }
+        else if (program.status === "finalizing"){
+            p.background(30);
+            p.fill(250);
+            p.textAlign(p.CENTER, p.CENTER);
+            p.textSize(_(8));
+            p.text("Finalizing audio...", p.width/2, p.height/2);
         }
         else if (program.status === "generating"){
             const r = p.min(p.width, p.height) * 0.2;
@@ -372,7 +464,10 @@ const sketch = (p) => {
             }
 
             // end of animation
-            else previewClicked();
+            else {
+                if (program.status === "playing") previewClicked();
+                else if (program.status === "recording") setupScene("finalizing"); // wait scene
+            }
         }
     }
 
@@ -394,4 +489,43 @@ window.onload = () => {
 };
 
 
+function startRecording(successCallback, failCallback){
+    // Start recording. Browser will request permission to use your microphone.
+    recorder.start().then(successCallback).catch(failCallback);
+}
+function stopRecording(successCallback, failCallback){
+    recorder.stop().getMp3().then(successCallback).catch(failCallback);
+}
 
+
+/*
+const recorder = new MicRecorder({
+  bitRate: 128
+});
+
+// Start recording. Browser will request permission to use your microphone.
+recorder.start().then(() => {
+  // something else
+}).catch((e) => {
+  console.error(e);
+});
+
+// Once you are done singing your best song, stop and get the mp3.
+recorder
+.stop()
+.getMp3().then(([buffer, blob]) => {
+  // do what ever you want with buffer and blob
+  // Example: Create a mp3 file and play
+  const file = new File(buffer, 'me-at-thevoice.mp3', {
+    type: blob.type,
+    lastModified: Date.now()
+  });
+
+  const player = new Audio(URL.createObjectURL(file));
+  player.play();
+
+}).catch((e) => {
+  alert('We could not retrieve your message');
+  console.log(e);
+});
+*/

@@ -6,7 +6,9 @@
     type="image/png" 
     href="https://cdn3.iconfinder.com/data/icons/letters-and-numbers-1/32/letter_T_red-512.png">
 
+    <script src="https://unpkg.com/mic-recorder-to-mp3@2.2.2/dist/index.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/p5.js"></script>
+    
     <link rel="stylesheet" type="text/css" href="./style.css">
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,19 +20,24 @@
 
     <p id="wait-message" hidden>Generating video, please wait ...</p>
 
+    <div id="recording-control">
+      <p>Recording...</p>
+      <button id="cancel-recording-button">Cancel</button>
+    </div>
+
     <div id="main-buttons-container">
       <button id="btn-preview">Preview</button>
       <button id="btn-generate">Generate Video</button>
     </div>
 
     <div id="options-container">
-        <div id="text-area-container">
+        <div id="text-area-container" title="main text input">
           <textarea id="text-area"></textarea>
         </div>
 
         <div id="author-container">
           <input type="text" placeholder="Name" id="author">
-          <button id="audio-button"></button>
+          <button id="audio-button" onclick="setAudioModalVisibility(true)"></button>
         </div>
 
         <div>
@@ -79,9 +86,10 @@
     <div id="audio-modal">
       <div>
         <h6>Warning: Any changes to the main text input will REMOVE the recorded audio.</h6>
-        <p>When you record an audio, the recording will start after a countdown and end when the animation ends. Once you have recorded, previewing the animation will also play the audio.</p>
-        <button onclick="setUpRecordMode()">Record new audio</button>
-        <button onclick="closeAudioModal()">Close</button>
+        <p>When you record an audio, the recording will start after a countdown and end when the animation ends. While recording, you can cancel and the previous audio won't be replaced. Once you have recorded, previewing the animation will also play the audio.</p>
+        <button id="record-audio-button">Record new audio</button>
+        <button id="remove-audio-button">Remove existing audio</button>
+        <button onclick="setAudioModalVisibility(false)">Close</button>
       </div>
     </div>
 
