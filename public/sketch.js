@@ -46,11 +46,12 @@ const LIMIT_WIDTH = 80; // percent of width before scrolling right
 const BLINK_DURATION = 30; // smaller is faster
 const _PADDING_ = 1.5; // for name text
 
-const CAMERA_X_SPEED_ACC = 0.035;
+const CAMERA_X_SPEED_ACC = 0.04;
 const CAMERA_X_SPEED_LIMIT = 0.6;
-const END_LINE_WAIT = 20; // wait duration when a line is done
-const LETTER_DURATION_FACTOR = 2.0;
-const NEXT_LINE_DURATION = 12; // duration of animation moving to next line
+// durations below: bigger => slower
+const END_LINE_WAIT = 15; // wait duration when a line is done
+const LETTER_DURATION_FACTOR = 1.0;
+const NEXT_LINE_DURATION = 10; // duration of animation moving to next line
 
 let recorder;
 let program = {
@@ -350,7 +351,7 @@ const sketch = (p) => {
             p.fill(250);
             p.textAlign(p.CENTER, p.CENTER);
             p.textSize(_(25));
-            p.text(p.ceil(program.recordingCountdown / 30), p.width/2, p.height/2);
+            p.text(p.max(0, p.ceil(program.recordingCountdown / 30)), p.width/2, p.height/2);
 
             program.recordingCountdown--;
             if (program.recordingCountdown === 0){
