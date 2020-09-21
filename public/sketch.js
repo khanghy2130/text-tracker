@@ -69,6 +69,7 @@ let program = {
     isRecording: false,
     recordingCountdown: 0, // frameRate * 3
     hasAudio: false,
+    audioBlob: null,
     audioFile: null,
     audioPlayer: null
 };
@@ -109,6 +110,9 @@ const sketch = (p) => {
         program.UNIQUE_ID = Date.now(); // new id
         const configs = {
             id: program.UNIQUE_ID,
+
+            audioBlob64: program.audioBlob64,
+            hasAudio: program.hasAudio,
 
             bgColor: bgColorPicker.value,
             textColor: textColorPicker.value,
@@ -164,7 +168,7 @@ const sketch = (p) => {
                 })
                 .catch((error) => {
                     console.log(error);
-                    stopGenerating(false);
+                    stopWating(false);
                 });
         }, 2000);
     }
@@ -224,6 +228,11 @@ const sketch = (p) => {
                 console.log("Successfully finalized audio.");
 
                 // set properties for program object
+                (async () => {
+                    const b64 = await blobToBase64(blob);
+                    program.audioBlob64 = b64;
+                })();
+
                 program.audioFile = new File(buffer, `audio.mp3`, {
                     type: blob.type,
                     lastModified: Date.now()
@@ -498,6 +507,16 @@ function stopRecording(successCallback, failCallback){
     recorder.stop().getMp3().then(successCallback).catch(failCallback);
 }
 
+
+const blobToBase64 = (blob) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = function () {
+        resolve(reader.result);
+      };
+    });
+};
 
 /*
 const recorder = new MicRecorder({

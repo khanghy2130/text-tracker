@@ -83,6 +83,19 @@ const loadedFonts = [
     p5.loadFont({ path: './fonts/PlayfairDisplay.ttf', family: 'Playfair Display' })
 ];
 
+// const
+const _WIDTH = 576; // for generation
+const LEFT_PADDING = 2; // for main text
+const LIMIT_WIDTH = 80; // percent of width before scrolling right
+const BLINK_DURATION = 30; // smaller is faster
+const _PADDING_ = 1.5; // for name text
+
+const CAMERA_X_SPEED_ACC = 0.04;
+const CAMERA_X_SPEED_LIMIT = 0.6;
+// durations below: bigger => slower
+const END_LINE_WAIT = 15; // wait duration when a line is done
+const LETTER_DURATION_FACTOR = 1.0;
+const NEXT_LINE_DURATION = 10; // duration of animation moving to next line
 
 let isGenerating = false; // generate one video at once
 let p5Program = {}; // contains configs, res, and start()
@@ -96,9 +109,9 @@ function sketch(p) {
     p5Program.start = function(){
         isGenerating = true;
         framesData = [];
+        i = 0; // important
 
         // setup configs
-        const _WIDTH = p5Program.configs._WIDTH;
         p.createCanvas(_WIDTH, _WIDTH * p5Program.configs.canvasHeightFactor); 
 
         p.loop();
@@ -150,7 +163,15 @@ let p5Instance = p5.createSketch(sketch);
 // takes array of dataURLs. creates video with ID. responds with download path
 function generateVideo(framesArray, id){
     const rawVideoFile = `./result/raw_${id}.mp4`;
-    //////////////const audioFile = `./audio/audio_${id}.mp3`;
+
+    let audioFile;
+    if (p5Program.configs.hasAudio){
+        const audioBuffer = Buffer.from(p5Program.configs.audioBlob64.split("data:audio/mp3;base64,").pop(), "base64");
+        fs.writeFileSync(`./audio/audio_${id}.mp3`, audioBuffer, {encoding: "base64"});
+
+        audioFile = `./audio/audio_${id}.mp3`;
+    }
+
     const finalVideoFile = `./result/final_${id}.mp4`;
 
     mjpeg({ fileName: rawVideoFile, ignoreIdenticalFrames: 0 })
@@ -177,7 +198,8 @@ function generateVideo(framesArray, id){
     
                     let command = new ffmpegCommand();
                     command.input(rawVideoFile);
-                    /////////////command.input(audioFile);
+                    if (audioFile) command.input(audioFile);
+
                     command.videoCodec("libx264");
                     command.videoBitrate("1000k", true);
                     command.on("end", function() {
