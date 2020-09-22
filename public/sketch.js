@@ -51,7 +51,7 @@ const END_LINE_WAIT = 12; // wait duration when a line is done
 const LETTER_DURATION_FACTOR = 1.3;
 const NEXT_LINE_DURATION = 15; // duration of animation moving to next line
 
-let recorder;
+
 let program = {
     UNIQUE_ID : 0, // new id when generate
     status: "idle", // idle, playing, recording, finalizing, generating
@@ -67,8 +67,7 @@ let program = {
     isRecording: false,
     recordingCountdown: 0, // frameRate * 3
     hasAudio: false,
-    audioBlob: null,
-    audioFile: null,
+    audioBlob64: null,
     audioPlayer: null
 };
 
@@ -182,15 +181,12 @@ const sketch = (p) => {
             setAudioBtnText();
         }
     }
-    function cancelRecording() {
+    function cancelRecordingButtonClicked() {
         setupScene("canceling");
-        stopRecording(([buffer, blob]) => {
-            console.log("Recording canceled.");
-            setupScene("idle");
-        }, (err) => {
-            console.log(err);
-            alert("Failed to finalize audio.");
-        });
+
+        _cancelRecording();
+        console.log("Recording canceled.");
+        setupScene("idle");
     }
 
     function setupScene(sceneName){
@@ -219,30 +215,11 @@ const sketch = (p) => {
 
             setupAnimation();
         }
-        if (program.status === "finalizing"){
+        if (sceneName === "finalizing"){
             setRecordingControlVisibility(false);
             program.isRecording = false;
 
-            stopRecording(([buffer, blob]) => {
-                console.log("Successfully finalized audio.");
-
-                // set properties for program object
-                (async () => {
-                    program.audioBlob64 = await blobToBase64(blob);
-                })();
-
-                program.audioFile = new File(buffer, `audio.mp3`, {
-                    type: blob.type,
-                    lastModified: Date.now()
-                });
-                program.audioPlayer = new Audio(URL.createObjectURL(program.audioFile));
-                program.hasAudio = true;
-                setupScene("idle");
-                alert("Audio added, click Preview to play.");
-            }, (err) => {
-                console.log(err);
-                alert("Failed to finalize audio.");
-            });
+            _finishRecording();
         }
         else if (sceneName === "generating"){
             waitMessage.hidden = false;
@@ -282,7 +259,7 @@ const sketch = (p) => {
         // element events
         document.getElementById("record-audio-button").onclick = () => {setupScene("recording")};
         document.getElementById("remove-audio-button").onclick = removeAudio;
-        document.getElementById("cancel-recording-button").onclick = cancelRecording;
+        document.getElementById("cancel-recording-button").onclick = cancelRecordingButtonClicked;
         previewButton.onclick = previewClicked;
         generateButton.onclick = startGenerating;
         ratioDropdown.onchange = createTheCanvas;
@@ -348,18 +325,35 @@ const sketch = (p) => {
             p.fill(250);
             p.textAlign(p.CENTER, p.CENTER);
             p.textSize(_(25));
-            p.text(p.max(0, p.ceil(program.recordingCountdown / 30)), p.width/2, p.height/2);
+            p.text(p.max(1, p.ceil(program.recordingCountdown / 30)), p.width/2, p.height/2);
 
             program.recordingCountdown--;
             if (program.recordingCountdown === 0){
-                startRecording(() => {
+                _startRecording(() => {
                     program.isRecording = true; // starting animation
                     setRecordingControlVisibility(true);
                     console.log("Started recording...");
-                }, (err) => {
-                    console.log(err);
+                }, 
+                () => {
+                    console.log("Error while starting recording!");
                     setupScene("idle");
                     alert("Couldn't start recording, please check the mic access.");
+                }, 
+                (blob) => {
+                    console.log("Successfully finalized audio.");
+
+                    // set properties for program object
+                    (async () => {
+                        program.audioBlob64 = await blobToBase64(blob);
+                    })();
+
+                    blob.lastModifiedDate = new Date();
+                    blob.name = "audio.mp3";
+                    
+                    program.audioPlayer = new Audio(URL.createObjectURL(blob));
+                    program.hasAudio = true;
+                    setupScene("idle");
+                    alert("Audio added, click Preview to play.");
                 });
             }
         }
@@ -499,15 +493,6 @@ const sketch = (p) => {
 window.onload = () => {
     new p5(sketch, document.getElementById("canvas-program-container"));
 };
-
-
-function startRecording(successCallback, failCallback){
-    // Start recording. Browser will request permission to use your microphone.
-    recorder.start().then(successCallback).catch(failCallback);
-}
-function stopRecording(successCallback, failCallback){
-    recorder.stop().getMp3().then(successCallback).catch(failCallback);
-}
 
 
 const blobToBase64 = (blob) => {
