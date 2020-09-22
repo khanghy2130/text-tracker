@@ -16,8 +16,6 @@ let textColorPicker;
 let fontFamiliesDropdown;
 let ratioDropdown;
 
-// image
-let faderImage;
 
 // global functions
 function setOptionsVisibility(shown){
@@ -49,9 +47,9 @@ const _PADDING_ = 1.5; // for name text
 const CAMERA_X_SPEED_ACC = 0.04;
 const CAMERA_X_SPEED_LIMIT = 0.6;
 // durations below: bigger => slower
-const END_LINE_WAIT = 15; // wait duration when a line is done
-const LETTER_DURATION_FACTOR = 1.0;
-const NEXT_LINE_DURATION = 10; // duration of animation moving to next line
+const END_LINE_WAIT = 12; // wait duration when a line is done
+const LETTER_DURATION_FACTOR = 1.3;
+const NEXT_LINE_DURATION = 15; // duration of animation moving to next line
 
 let recorder;
 let program = {
@@ -107,21 +105,22 @@ const sketch = (p) => {
         setupScene("generating");
 
         // send configs
+        const linesList = textArea.value.split(String.fromCharCode(10));
         program.UNIQUE_ID = Date.now(); // new id
         const configs = {
             id: program.UNIQUE_ID,
 
-            audioBlob64: program.audioBlob64,
+            audioBlob64: program.hasAudio ? program.audioBlob64 : null,
             hasAudio: program.hasAudio,
-
+            
             bgColor: bgColorPicker.value,
             textColor: textColorPicker.value,
-            processedText: "", //////
+            wordsListsArray: linesList.map(str => str.split(" ")),
             author: authorInput.value,
 
             canvasHeightFactor: [1, 9/16, 16/9][Number(ratioDropdown.value)], // ratio
-            veritcalSpacing: 0, //////////
-            fSize: textSizeSlider.value/100 * _WIDTH,
+            verticalSpacing: Number(verticalSpacingSlider.value),
+            fSize: Number(textSizeSlider.value),
             fFamily: fontFamiliesDropdown.value
         };
 
@@ -229,8 +228,7 @@ const sketch = (p) => {
 
                 // set properties for program object
                 (async () => {
-                    const b64 = await blobToBase64(blob);
-                    program.audioBlob64 = b64;
+                    program.audioBlob64 = await blobToBase64(blob);
                 })();
 
                 program.audioFile = new File(buffer, `audio.mp3`, {
@@ -259,13 +257,10 @@ const sketch = (p) => {
             program.wordIndex = -1; // before 1st word
             program.cameraX = 0;
             program.goingToNextLine = false;
-            program.waitCountdown = END_LINE_WAIT; // initial wait
+            program.waitCountdown = END_LINE_WAIT*3; // initial wait
         }
     }
     
-    p.preload = () => {
-        faderImage = p.loadImage("./fader.png");
-    };
     p.setup = () => {
         // get html elements
         previewButton = document.getElementById("btn-preview");
@@ -300,8 +295,6 @@ const sketch = (p) => {
         createTheCanvas();
         p.frameRate(30);
         p.noStroke();
-        p.imageMode(p.CENTER);
-        p.rectMode(p.CORNER);
         setupScene("idle");
     };
 
@@ -335,10 +328,7 @@ const sketch = (p) => {
             }
             p.pop();
 
-            // fader
-            p.tint(bgColorPicker.value); 
-            p.image(faderImage, _(50), _(25, true), _(105), _(50, true));
-
+            renderFader();
             renderName();
         }
         // playing or recording (after countdown)
@@ -349,9 +339,7 @@ const sketch = (p) => {
             renderTextsPlaying();
             p.pop();
 
-            // fader
-            p.tint(bgColorPicker.value);
-            p.image(faderImage, _(50), _(25, true), _(105), _(50, true));
+            renderFader();
             renderName();
         }
         // still counting down to record
@@ -394,6 +382,17 @@ const sketch = (p) => {
             p.background(0, 0, 0, 15);
         }
     };
+
+    function renderFader(){
+        p.strokeWeight(_(0.5));
+        for (let i = p.height/2; i >= 0; i--){
+            const strokeColor = p.color(bgColorPicker.value);
+            strokeColor.setAlpha(255 - p.map(i, 0, p.height/2, 0, 255));
+            p.stroke(strokeColor);
+            p.line(0, i, p.width, i);
+        }
+        p.noStroke();
+    }
 
     function renderTextsPlaying() {
         const masterArr = program.wordsListsArray;
@@ -457,6 +456,9 @@ const sketch = (p) => {
                 // extra wait if is last word in the line
                 if (program.wordIndex === currentLine.length - 1){
                     program.waitCountdown += END_LINE_WAIT;
+
+                    // another extra wait if is last line
+                    if (program.lineIndex === masterArr.length - 1) program.waitCountdown += END_LINE_WAIT*3;
                 }
             }
 
@@ -517,35 +519,3 @@ const blobToBase64 = (blob) => {
       };
     });
 };
-
-/*
-const recorder = new MicRecorder({
-  bitRate: 128
-});
-
-// Start recording. Browser will request permission to use your microphone.
-recorder.start().then(() => {
-  // something else
-}).catch((e) => {
-  console.error(e);
-});
-
-// Once you are done singing your best song, stop and get the mp3.
-recorder
-.stop()
-.getMp3().then(([buffer, blob]) => {
-  // do what ever you want with buffer and blob
-  // Example: Create a mp3 file and play
-  const file = new File(buffer, 'me-at-thevoice.mp3', {
-    type: blob.type,
-    lastModified: Date.now()
-  });
-
-  const player = new Audio(URL.createObjectURL(file));
-  player.play();
-
-}).catch((e) => {
-  alert('We could not retrieve your message');
-  console.log(e);
-});
-*/
