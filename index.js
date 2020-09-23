@@ -249,10 +249,16 @@ function sketch(p) {
                 
                 // count empty lines to scroll past
                 program.scrollLinesAmount = 1;
+                let leadingToEmptiness = true;
                 for (let i = program.lineIndex + 1; i < masterArr.length; i++){
                     if (masterArr[i][0].length === 0) program.scrollLinesAmount++;
-                    else break;
+                    else {
+                        leadingToEmptiness = false;
+                        break;
+                    }
                 }
+                // prevent crash
+                if (leadingToEmptiness) program.scrollLinesAmount--;
             }
 
             // end of animation
@@ -320,9 +326,10 @@ function generateVideo(framesArray, id){
                     command.on("end", function() {
                         isGenerating = false;
                         console.log("mp4 ready!");
-                        // remove file input video file
+                        // remove file input video and audio files
                         try {
                             fs.unlinkSync(rawVideoFile)
+                            if (audioFile) fs.unlinkSync(audioFile);
                         } catch(err) {
                             console.error(err)
                         }
