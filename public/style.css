@@ -5,16 +5,32 @@
 
 body {
     background-color: rgb(188, 117, 246);
-    padding: 3vh 0;
+    padding: 5vh 0 2vh;
     overflow-y: scroll;
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
     font-family: "Poppins";
 }
 button, textarea {
     font-family: "Poppins";
 }
+
+#main-canvas-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+#main-options-wrapper {
+    width: 100%;
+    max-width: 530px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
 
 #canvas-program-container {
     display: flex;
@@ -43,15 +59,13 @@ button, textarea {
     justify-content: center;
 }
 #main-buttons-container > button {
-    font-size: 25px;
+    font-size: 22px;
     margin: 0 10px;
     padding: 5px;
     box-shadow: 2px 2px 2px black;
 }
 
 #options-container {
-    width: 100%;
-    max-width: 550px;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;

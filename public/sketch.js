@@ -11,6 +11,9 @@ let audioModal;
 
 let textSizeSlider;
 let verticalSpacingSlider;
+let textSpeedSlider;
+let scrollSpeedSlider;
+
 let bgColorPicker;
 let textColorPicker;
 let fontFamiliesDropdown;
@@ -46,10 +49,10 @@ const _PADDING_ = 1.5; // for name text
 
 const CAMERA_X_SPEED_ACC = 0.04;
 const CAMERA_X_SPEED_LIMIT = 0.6;
-// durations below: bigger => slower
 const END_LINE_WAIT = 12; // wait duration when a line is done
-const LETTER_DURATION_FACTOR = 1.3;
-const NEXT_LINE_DURATION = 15; // duration of animation moving to next line
+
+const GET_NEXT_LINE_DURATION = scroll_speed => 30 - scroll_speed;
+const GET_LETTER_DURATION_FACTOR = text_speed => 3.0 - text_speed;
 
 
 let program = {
@@ -121,10 +124,13 @@ const sketch = (p) => {
             wordsListsArray: linesList.map(str => str.split(" ")),
             author: authorInput.value,
 
-            canvasHeightFactor: [1, 9/16, 16/9][Number(ratioDropdown.value)], // ratio
             verticalSpacing: Number(verticalSpacingSlider.value),
             fSize: Number(textSizeSlider.value),
-            fFamily: fontFamiliesDropdown.value
+            textSpeed: Number(textSpeedSlider.value),
+            scrollSpeed: Number(scrollSpeedSlider.value),
+
+            fFamily: fontFamiliesDropdown.value,
+            canvasHeightFactor: [1, 9/16, 16/9][Number(ratioDropdown.value)] // ratio
         };
 
         // fetching { success: boolean, errorMessage?: string }
@@ -255,6 +261,9 @@ const sketch = (p) => {
 
         textSizeSlider = document.getElementById("text-size-slider");
         verticalSpacingSlider = document.getElementById("vertical-slider");
+        textSpeedSlider = document.getElementById("text-speed-slider");
+        scrollSpeedSlider = document.getElementById("scroll-speed-slider");
+
         bgColorPicker = document.getElementById("bg-color-picker");
         textColorPicker = document.getElementById("text-color-picker");
         fontFamiliesDropdown = document.getElementById("ff-dropdown");
@@ -271,7 +280,6 @@ const sketch = (p) => {
         textArea.onchange = removeAudio;
         
         setAudioModalVisibility(false);
-        recorder = new MicRecorder({bitRate: 128});
         
         createTheCanvas();
         p.frameRate(30);
@@ -400,7 +408,7 @@ const sketch = (p) => {
         if (program.goingToNextLine){
             const animationProgress = p.map(
                 program.waitCountdown, 
-                0, NEXT_LINE_DURATION,
+                0, GET_NEXT_LINE_DURATION(scrollSpeedSlider.value),
                 0, Math.PI/2
             );
             p.translate(0, -_(p.cos(animationProgress) * verticalSpacingSlider.value * program.scrollLinesAmount));
@@ -449,7 +457,8 @@ const sketch = (p) => {
                 program.wordIndex++; // next word
                 const customeWaitAmount = currentLine[program.wordIndex].split("_").length-1;
                 const lettersAmount = currentLine[program.wordIndex].length;
-                program.waitCountdown =  (4 + lettersAmount) * LETTER_DURATION_FACTOR + (customeWaitAmount * LETTER_DURATION_FACTOR * 10);
+                const LDF = GET_LETTER_DURATION_FACTOR(textSpeedSlider.value);
+                program.waitCountdown =  (4 + lettersAmount) * LDF + (customeWaitAmount * LDF * 10);
 
                 // extra wait if is last word in the line
                 if (program.wordIndex === currentLine.length - 1){
@@ -462,7 +471,7 @@ const sketch = (p) => {
 
             // still has more lines? => set up next line animation
             else if (program.lineIndex < masterArr.length - 1){
-                program.waitCountdown = NEXT_LINE_DURATION;
+                program.waitCountdown = GET_NEXT_LINE_DURATION(scrollSpeedSlider.value);
                 program.goingToNextLine = true;
                 
                 // count empty lines to scroll past

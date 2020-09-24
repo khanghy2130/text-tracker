@@ -94,10 +94,10 @@ const _PADDING_ = 1.5; // for name text
 
 const CAMERA_X_SPEED_ACC = 0.04;
 const CAMERA_X_SPEED_LIMIT = 0.6;
-// durations below: bigger => slower
 const END_LINE_WAIT = 12; // wait duration when a line is done
-const LETTER_DURATION_FACTOR = 1.3;
-const NEXT_LINE_DURATION = 15; // duration of animation moving to next line
+
+const GET_NEXT_LINE_DURATION = scroll_speed => 30 - scroll_speed;
+const GET_LETTER_DURATION_FACTOR = text_speed => 3.0 - text_speed;
 
 let isGenerating = false; // generate one video at once
 let p5Program = {}; // contains configs, res, and start()
@@ -181,7 +181,7 @@ function sketch(p) {
         if (program.goingToNextLine){
             const animationProgress = p.map(
                 program.waitCountdown, 
-                0, NEXT_LINE_DURATION,
+                0, GET_NEXT_LINE_DURATION(p5Program.configs.scrollSpeed),
                 0, Math.PI/2
             );
             p.translate(0, -_(p.cos(animationProgress) * p5Program.configs.verticalSpacing * program.scrollLinesAmount));
@@ -231,7 +231,8 @@ function sketch(p) {
                 program.wordIndex++; // next word
                 const customeWaitAmount = currentLine[program.wordIndex].split("_").length-1;
                 const lettersAmount = currentLine[program.wordIndex].length;
-                program.waitCountdown =  (4 + lettersAmount) * LETTER_DURATION_FACTOR + (customeWaitAmount * LETTER_DURATION_FACTOR * 10);
+                const LDF = GET_LETTER_DURATION_FACTOR(p5Program.configs.textSpeed);
+                program.waitCountdown =  (4 + lettersAmount) * LDF + (customeWaitAmount * LDF * 10);
 
                 // extra wait if is last word in the line
                 if (program.wordIndex === currentLine.length - 1){
@@ -244,7 +245,7 @@ function sketch(p) {
 
             // still has more lines? => set up next line animation
             else if (program.lineIndex < masterArr.length - 1){
-                program.waitCountdown = NEXT_LINE_DURATION;
+                program.waitCountdown = GET_NEXT_LINE_DURATION(p5Program.configs.scrollSpeed);
                 program.goingToNextLine = true;
                 
                 // count empty lines to scroll past
