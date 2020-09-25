@@ -49,9 +49,12 @@ const _PADDING_ = 1.5; // for name text
 
 const CAMERA_X_SPEED_ACC = 0.13;
 const CAMERA_X_SPEED_LIMIT = 2;
-const END_LINE_WAIT = 12; // wait duration when a line is done
+const END_LINE_WAIT = 12; // wait duration for symbols .,;?! and at the end of a line
 
-const GET_NEXT_LINE_DURATION = scroll_speed => 30 - scroll_speed;
+const GET_NEXT_LINE_DURATION = (scroll_speed, isHorizontal) => {
+    if (isHorizontal) return 30 - Math.round(scroll_speed * 1.2);
+    return 30 - scroll_speed;
+}
 const GET_LETTER_DURATION_FACTOR = text_speed => 3.0 - text_speed;
 
 
@@ -64,10 +67,13 @@ let program = {
     lineIndex: 0,
     wordIndex: 0,
     goingToNextLine: false, // true when animating to next line
+    scrollLinesAmount: 0, // amount of empty lines to scroll past
     cameraX: 0, // real render value, not percentage
     waitCountdown: 0, // various wait times (end of line? how long is the word?)
     horizontalScrollMark: 0, // current ending point for cameraX
-    zoomOutLevel: 0, // 1 2 3
+    previousScrollMark: 0, // starting point for hoerizontalScrollMark
+    scrollProgress: 0, // 0 - scroll duration
+    zoomOutLevel: 0, // 0 1 2
 
     isRecording: false,
     recordingCountdown: 0, // frameRate * 3
@@ -248,6 +254,8 @@ const sketch = (p) => {
             program.goingToNextLine = false;
             program.waitCountdown = END_LINE_WAIT*3; // initial wait
             program.horizontalScrollMark = 0;
+            program.previousScrollMark = 0;
+            program.scrollProgress = 999;
             program.zoomOutLevel = 0;
         }
     }
@@ -409,7 +417,7 @@ const sketch = (p) => {
         let currentLine = masterArr[program.lineIndex];
         p.textSize(_(textSizeSlider.value - program.zoomOutLevel * 0.9));
 
-        // vertical scroll
+        // vertical scroll animation
         if (program.goingToNextLine){
             const animationProgress = p.map(
                 program.waitCountdown, 
@@ -418,8 +426,20 @@ const sketch = (p) => {
             );
             p.translate(0, -_(p.cos(animationProgress) * verticalSpacingSlider.value * program.scrollLinesAmount));
         }
-        // horizontal & vertical scroll
-        p.translate(-program.cameraX, _(50, true));
+
+        // horizontal scroll animation
+        const nextHorizontalScrollDuration = GET_NEXT_LINE_DURATION(scrollSpeedSlider.value, true);
+        if (program.scrollProgress < nextHorizontalScrollDuration) program.scrollProgress++;
+        const animationProgress = p.map(
+            nextHorizontalScrollDuration - program.scrollProgress, 
+            0, nextHorizontalScrollDuration,
+            0, Math.PI/2
+        );
+        const DISTANCE = program.horizontalScrollMark - program.previousScrollMark;
+        p.translate(-p.cos(animationProgress) * DISTANCE, 0);
+
+        // static horizontal & vertical scroll
+        p.translate(-program.previousScrollMark, _(50, true));
         // update cameraX
         const lastLineWidth = p.textWidth(currentLine.slice(0, program.wordIndex + 1).join(" "));
         // still behind the mark? => scroll
@@ -431,11 +451,13 @@ const sketch = (p) => {
         if (lastLineWidth > program.horizontalScrollMark + _(LIMIT_WIDTH + 5)) {
             if (program.zoomOutLevel < 2) program.zoomOutLevel++;
             p.textSize(_(textSizeSlider.value - program.zoomOutLevel * 0.9));
-            console.log(p.textWidth(currentLine) - _(LIMIT_WIDTH - 5) < program.horizontalScrollMark + _(60));
+            /////console.log(p.textWidth(currentLine) - _(LIMIT_WIDTH - 5) < program.horizontalScrollMark + _(60));
+            program.previousScrollMark = program.horizontalScrollMark; // going next
             program.horizontalScrollMark = p.min(
                 p.textWidth(currentLine) - _(LIMIT_WIDTH - 5), 
                 program.horizontalScrollMark + _(60)
             );
+            program.scrollProgress = 0;
         }
 
         // render
