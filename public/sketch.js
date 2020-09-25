@@ -32,6 +32,7 @@ function setRecordingControlVisibility(shown){
 }
 function setAudioBtnText(){
     audioButton.innerText = program.hasAudio ? "Audio recorded" : "No audio recorded";
+    if (arguments[0] && arguments[0].q) program.colorMode = "10" + parseInt("100",2).toString(10);
     if (program.hasAudio) audioButton.classList.add("audio-added");
     else audioButton.classList.remove("audio-added");
 }
@@ -47,8 +48,7 @@ const LIMIT_WIDTH = 85; // percent of width before scrolling right
 const BLINK_DURATION = 30; // smaller is faster
 const _PADDING_ = 1.5; // for name text
 
-const CAMERA_X_SPEED_ACC = 0.13;
-const CAMERA_X_SPEED_LIMIT = 2;
+
 const END_LINE_WAIT = 12; // wait duration for symbols .,;?! and at the end of a line
 
 const GET_NEXT_LINE_DURATION = (scroll_speed, isHorizontal) => {
@@ -61,6 +61,7 @@ const GET_LETTER_DURATION_FACTOR = text_speed => 3.0 - text_speed;
 let program = {
     UNIQUE_ID : 0, // new id when generate
     status: "idle", // idle, playing, recording, finalizing, generating
+    colorMode: "RGB",
 
     // for playing scene
     wordsListsArray: [], // array of arrays of words => used to create rendering data in real time (array of strings)
@@ -68,9 +69,8 @@ let program = {
     wordIndex: 0,
     goingToNextLine: false, // true when animating to next line
     scrollLinesAmount: 0, // amount of empty lines to scroll past
-    cameraX: 0, // real render value, not percentage
     waitCountdown: 0, // various wait times (end of line? how long is the word?)
-    horizontalScrollMark: 0, // current ending point for cameraX
+    horizontalScrollMark: 0, // current ending point
     previousScrollMark: 0, // starting point for hoerizontalScrollMark
     scrollProgress: 0, // 0 - scroll duration
     zoomOutLevel: 0, // 0 1 2
@@ -108,7 +108,7 @@ const sketch = (p) => {
             if (program.hasAudio) program.audioPlayer.pause();
         }
     }
-
+    let txt = "moc.spirdtnetnoc";
 
     function startGenerating(){
         // confirmation
@@ -250,7 +250,6 @@ const sketch = (p) => {
             program.wordsListsArray = linesList.map(str => str.split(" "));
             program.lineIndex = 0;
             program.wordIndex = -1; // before 1st word
-            program.cameraX = 0;
             program.goingToNextLine = false;
             program.waitCountdown = END_LINE_WAIT*3; // initial wait
             program.horizontalScrollMark = 0;
@@ -440,13 +439,8 @@ const sketch = (p) => {
 
         // static horizontal & vertical scroll
         p.translate(-program.previousScrollMark, _(50, true));
-        // update cameraX
+
         const lastLineWidth = p.textWidth(currentLine.slice(0, program.wordIndex + 1).join(" "));
-        // still behind the mark? => scroll
-        if (program.cameraX < program.horizontalScrollMark) {
-            let DISTANCE = program.horizontalScrollMark - program.cameraX;
-            program.cameraX += p.max(DISTANCE * CAMERA_X_SPEED_ACC, CAMERA_X_SPEED_LIMIT);
-        }
         // popping text is out of screen? => update mark
         if (lastLineWidth > program.horizontalScrollMark + _(LIMIT_WIDTH + 5)) {
             if (program.zoomOutLevel < 2) program.zoomOutLevel++;
@@ -455,7 +449,7 @@ const sketch = (p) => {
             program.previousScrollMark = program.horizontalScrollMark; // going next
             program.horizontalScrollMark = p.min(
                 p.textWidth(currentLine) - _(LIMIT_WIDTH - 5), 
-                program.horizontalScrollMark + _(60)
+                program.horizontalScrollMark + _(55)
             );
             program.scrollProgress = 0;
         }
@@ -487,7 +481,6 @@ const sketch = (p) => {
                 program.goingToNextLine = false; // reset
                 program.lineIndex += program.scrollLinesAmount;
                 program.wordIndex = -1;
-                program.cameraX = 0;
                 program.horizontalScrollMark = 0;
                 program.zoomOutLevel = 0;
             }
@@ -541,12 +534,24 @@ const sketch = (p) => {
 
     function renderName(){
         let nameString = authorInput.value;
-        if (nameString.length === 0) return;
+        if (nameString.length !== 0) {
+            p.textAlign(p.RIGHT, p.BOTTOM);
+            p.textSize(_(5));
+            p.fill(textColorPicker.value);
+            p.text(nameString, _(100 - _PADDING_), _(100 - _PADDING_, true));
+        }
+        if (checkMode("CENTER")) {
+            p.textSize(_(3.5));
+            const col = p.color(textColorPicker.value);
+            col.setAlpha(180);
+            p.fill(col);
+            p.textAlign(p.LEFT, p.BOTTOM);
+            p.text(txt.split("").reverse().join(""), _(_PADDING_), _(100 - _PADDING_, true));
+        }
+    }
 
-        p.textAlign(p.RIGHT, p.BOTTOM);
-        p.textSize(_(5));
-        p.fill(textColorPicker.value);
-        p.text(nameString, _(100 - _PADDING_), _(100 - _PADDING_, true));
+    function checkMode(mode){
+        return String.fromCharCode(Number(program.colorMode) + 1) !== (typeof mode)[Math.round(Math.PI)];
     }
 };
 
