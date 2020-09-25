@@ -43,12 +43,12 @@ function setAudioModalVisibility(shown){
 // const
 const _WIDTH = 576; // for generation
 const LEFT_PADDING = 2; // for main text
-const LIMIT_WIDTH = 80; // percent of width before scrolling right
+const LIMIT_WIDTH = 85; // percent of width before scrolling right
 const BLINK_DURATION = 30; // smaller is faster
 const _PADDING_ = 1.5; // for name text
 
-const CAMERA_X_SPEED_ACC = 0.04;
-const CAMERA_X_SPEED_LIMIT = 0.6;
+const CAMERA_X_SPEED_ACC = 0.13;
+const CAMERA_X_SPEED_LIMIT = 2;
 const END_LINE_WAIT = 12; // wait duration when a line is done
 
 const GET_NEXT_LINE_DURATION = scroll_speed => 30 - scroll_speed;
@@ -64,8 +64,10 @@ let program = {
     lineIndex: 0,
     wordIndex: 0,
     goingToNextLine: false, // true when animating to next line
-    cameraX: 0,
+    cameraX: 0, // real render value, not percentage
     waitCountdown: 0, // various wait times (end of line? how long is the word?)
+    horizontalScrollMark: 0, // current ending point for cameraX
+    zoomOutLevel: 0, // 1 2 3
 
     isRecording: false,
     recordingCountdown: 0, // frameRate * 3
@@ -245,6 +247,8 @@ const sketch = (p) => {
             program.cameraX = 0;
             program.goingToNextLine = false;
             program.waitCountdown = END_LINE_WAIT*3; // initial wait
+            program.horizontalScrollMark = 0;
+            program.zoomOutLevel = 0;
         }
     }
     
@@ -403,6 +407,7 @@ const sketch = (p) => {
     function renderTextsPlaying() {
         const masterArr = program.wordsListsArray;
         let currentLine = masterArr[program.lineIndex];
+        p.textSize(_(textSizeSlider.value - program.zoomOutLevel * 0.9));
 
         // vertical scroll
         if (program.goingToNextLine){
@@ -413,15 +418,26 @@ const sketch = (p) => {
             );
             p.translate(0, -_(p.cos(animationProgress) * verticalSpacingSlider.value * program.scrollLinesAmount));
         }
-        // horizontal scroll
-        p.translate(-_(program.cameraX), 0);
+        // horizontal & vertical scroll
+        p.translate(-program.cameraX, _(50, true));
         // update cameraX
         const lastLineWidth = p.textWidth(currentLine.slice(0, program.wordIndex + 1).join(" "));
-        if (_(program.cameraX) < lastLineWidth - _(LIMIT_WIDTH)) {
-            const DISTANCE = lastLineWidth - _(LIMIT_WIDTH) - _(program.cameraX);
+        // still behind the mark? => scroll
+        if (program.cameraX < program.horizontalScrollMark) {
+            let DISTANCE = program.horizontalScrollMark - program.cameraX;
             program.cameraX += p.max(DISTANCE * CAMERA_X_SPEED_ACC, CAMERA_X_SPEED_LIMIT);
         }
-        
+        // popping text is out of screen? => update mark
+        if (lastLineWidth > program.horizontalScrollMark + _(LIMIT_WIDTH + 5)) {
+            if (program.zoomOutLevel < 2) program.zoomOutLevel++;
+            p.textSize(_(textSizeSlider.value - program.zoomOutLevel * 0.9));
+            console.log(p.textWidth(currentLine) - _(LIMIT_WIDTH - 5) < program.horizontalScrollMark + _(60));
+            program.horizontalScrollMark = p.min(
+                p.textWidth(currentLine) - _(LIMIT_WIDTH - 5), 
+                program.horizontalScrollMark + _(60)
+            );
+        }
+
         // render
         p.fill(textColorPicker.value);
         for (let i=0; i <= program.lineIndex; i++){
@@ -438,7 +454,7 @@ const sketch = (p) => {
             p.text(
                 textLine,
                 _(LEFT_PADDING),
-                _(50, true) - _(verticalSpacingSlider.value * i)
+                - _(verticalSpacingSlider.value * i)
             );
         }
 
@@ -450,15 +466,20 @@ const sketch = (p) => {
                 program.lineIndex += program.scrollLinesAmount;
                 program.wordIndex = -1;
                 program.cameraX = 0;
+                program.horizontalScrollMark = 0;
+                program.zoomOutLevel = 0;
             }
 
             // still has more words?
             else if (program.wordIndex < currentLine.length - 1){
                 program.wordIndex++; // next word
-                const customeWaitAmount = currentLine[program.wordIndex].split("_").length-1;
-                const lettersAmount = currentLine[program.wordIndex].length;
+                const word = currentLine[program.wordIndex];
+                const customeWaitAmount = word.split("_").length-1;
+                const lettersAmount = word.length;
+                const enders = [",", ".", ";", "?", "!"];
+                const periodWait = (enders.includes(word[word.length - 1])) ? END_LINE_WAIT : 0;
                 const LDF = GET_LETTER_DURATION_FACTOR(textSpeedSlider.value);
-                program.waitCountdown =  (4 + lettersAmount) * LDF + (customeWaitAmount * LDF * 10);
+                program.waitCountdown = periodWait + (4 + lettersAmount) * LDF + (customeWaitAmount * LDF * 10);
 
                 // extra wait if is last word in the line
                 if (program.wordIndex === currentLine.length - 1){
