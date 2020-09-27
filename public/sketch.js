@@ -42,13 +42,12 @@ function setAudioModalVisibility(shown){
 
 
 // const
-const _WIDTH = 576; // for generation
+const _WIDTH = 576*2; // for generation
 const LEFT_PADDING = 2; // for main text
 const LIMIT_WIDTH = 85; // percent of width before scrolling right
 const BLINK_DURATION = 30; // smaller is faster
 const _PADDING_ = 1.5; // for name text
-
-
+const ZOOM_OUT_FACTOR = 0.9;
 const END_LINE_WAIT = 12; // wait duration for symbols .,;?! and at the end of a line
 
 const GET_NEXT_LINE_DURATION = (scroll_speed, isHorizontal) => {
@@ -138,7 +137,8 @@ const sketch = (p) => {
             scrollSpeed: Number(scrollSpeedSlider.value),
 
             fFamily: fontFamiliesDropdown.value,
-            canvasHeightFactor: [1, 9/16, 16/9][Number(ratioDropdown.value)] // ratio
+            canvasHeightFactor: [1, 9/16, 16/9][Number(ratioDropdown.value)], // ratio
+            mode: checkMode("CENTER")
         };
 
         // fetching { success: boolean, errorMessage?: string }
@@ -289,6 +289,8 @@ const sketch = (p) => {
         ratioDropdown.onchange = createTheCanvas;
         textArea.value = "Click Preview to play animation of this sample texts.\nUse UNDERSCORES__ to wait longer.\n\nSee more options below.";
         textArea.onchange = removeAudio;
+        textSpeedSlider.onchange = removeAudio;
+        scrollSpeedSlider.onchange = removeAudio;
         
         setAudioModalVisibility(false);
         
@@ -414,7 +416,7 @@ const sketch = (p) => {
     function renderTextsPlaying() {
         const masterArr = program.wordsListsArray;
         let currentLine = masterArr[program.lineIndex];
-        p.textSize(_(textSizeSlider.value - program.zoomOutLevel * 0.9));
+        p.textSize(_(textSizeSlider.value - program.zoomOutLevel * ZOOM_OUT_FACTOR));
 
         // vertical scroll animation
         if (program.goingToNextLine){
@@ -444,8 +446,7 @@ const sketch = (p) => {
         // popping text is out of screen? => update mark
         if (lastLineWidth > program.horizontalScrollMark + _(LIMIT_WIDTH + 5)) {
             if (program.zoomOutLevel < 2) program.zoomOutLevel++;
-            p.textSize(_(textSizeSlider.value - program.zoomOutLevel * 0.9));
-            /////console.log(p.textWidth(currentLine) - _(LIMIT_WIDTH - 5) < program.horizontalScrollMark + _(60));
+            p.textSize(_(textSizeSlider.value - program.zoomOutLevel * ZOOM_OUT_FACTOR));
             program.previousScrollMark = program.horizontalScrollMark; // going next
             program.horizontalScrollMark = p.min(
                 p.textWidth(currentLine) - _(LIMIT_WIDTH - 5), 

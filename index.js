@@ -86,17 +86,18 @@ const loadedFonts = [
 ];
 
 // const
-const _WIDTH = 576; // for generation
+const _WIDTH = 576*2; // for generation
 const LEFT_PADDING = 2; // for main text
-const LIMIT_WIDTH = 80; // percent of width before scrolling right
+const LIMIT_WIDTH = 85; // percent of width before scrolling right
 const BLINK_DURATION = 30; // smaller is faster
 const _PADDING_ = 1.5; // for name text
+const ZOOM_OUT_FACTOR = 0.9;
+const END_LINE_WAIT = 12; // wait duration for symbols .,;?! and at the end of a line
 
-const CAMERA_X_SPEED_ACC = 0.04;
-const CAMERA_X_SPEED_LIMIT = 0.6;
-const END_LINE_WAIT = 12; // wait duration when a line is done
-
-const GET_NEXT_LINE_DURATION = scroll_speed => 30 - scroll_speed;
+const GET_NEXT_LINE_DURATION = (scroll_speed, isHorizontal) => {
+    if (isHorizontal) return 30 - Math.round(scroll_speed * 1.2);
+    return 30 - scroll_speed;
+}
 const GET_LETTER_DURATION_FACTOR = text_speed => 3.0 - text_speed;
 
 let isGenerating = false; // generate one video at once
@@ -114,13 +115,16 @@ function sketch(p) {
             program.wordsListsArray = p5Program.configs.wordsListsArray;
             program.lineIndex = 0;
             program.wordIndex = -1; // before 1st word
-            program.cameraX = 0;
             program.goingToNextLine = false;
             program.waitCountdown = END_LINE_WAIT*3; // initial wait
+            program.horizontalScrollMark = 0;
+            program.previousScrollMark = 0;
+            program.scrollProgress = 999;
+            program.zoomOutLevel = 0;
 
         // setup configs
         p.createCanvas(_WIDTH, _WIDTH * p5Program.configs.canvasHeightFactor); 
-        p.textFont(p5Program.configs.fFamily, _(p5Program.configs.fSize));
+        p.textFont(p5Program.configs.fFamily, 10);
 
         p.loop();
     }
@@ -150,6 +154,7 @@ function sketch(p) {
 
         p.textSize(_(p5Program.configs.fSize));
         p.textAlign(p.LEFT, p.TOP);
+
         p.background(p5Program.configs.bgColor);
 
         p.push();
@@ -160,7 +165,7 @@ function sketch(p) {
         renderName();
 
         framesData.push(canvas.canvas.toDataURL("image/jpeg"));
-    }
+    };
 
     function renderFader(){
         p.strokeWeight(_(0.5));
@@ -176,8 +181,9 @@ function sketch(p) {
     function renderTextsPlaying() {
         const masterArr = program.wordsListsArray;
         let currentLine = masterArr[program.lineIndex];
+        p.textSize(_(p5Program.configs.fSize - program.zoomOutLevel * ZOOM_OUT_FACTOR));
 
-        // vertical scroll
+        // vertical scroll animation
         if (program.goingToNextLine){
             const animationProgress = p.map(
                 program.waitCountdown, 
@@ -186,15 +192,34 @@ function sketch(p) {
             );
             p.translate(0, -_(p.cos(animationProgress) * p5Program.configs.verticalSpacing * program.scrollLinesAmount));
         }
-        // horizontal scroll
-        p.translate(-_(program.cameraX), 0);
-        // update cameraX
+
+        // horizontal scroll animation
+        const nextHorizontalScrollDuration = GET_NEXT_LINE_DURATION(p5Program.configs.scrollSpeed, true);
+        if (program.scrollProgress < nextHorizontalScrollDuration) program.scrollProgress++;
+        const animationProgress = p.map(
+            nextHorizontalScrollDuration - program.scrollProgress, 
+            0, nextHorizontalScrollDuration,
+            0, Math.PI/2
+        );
+        const DISTANCE = program.horizontalScrollMark - program.previousScrollMark;
+        p.translate(-p.cos(animationProgress) * DISTANCE, 0);
+
+        // static horizontal & vertical scroll
+        p.translate(-program.previousScrollMark, _(50, true));
+
         const lastLineWidth = p.textWidth(currentLine.slice(0, program.wordIndex + 1).join(" "));
-        if (_(program.cameraX) < lastLineWidth - _(LIMIT_WIDTH)) {
-            const DISTANCE = lastLineWidth - _(LIMIT_WIDTH) - _(program.cameraX);
-            program.cameraX += p.max(DISTANCE * CAMERA_X_SPEED_ACC, CAMERA_X_SPEED_LIMIT);
+        // popping text is out of screen? => update mark
+        if (lastLineWidth > program.horizontalScrollMark + _(LIMIT_WIDTH + 5)) {
+            if (program.zoomOutLevel < 2) program.zoomOutLevel++;
+            p.textSize(_(p5Program.configs.fSize - program.zoomOutLevel * ZOOM_OUT_FACTOR));
+            program.previousScrollMark = program.horizontalScrollMark; // going next
+            program.horizontalScrollMark = p.min(
+                p.textWidth(currentLine) - _(LIMIT_WIDTH - 5), 
+                program.horizontalScrollMark + _(55)
+            );
+            program.scrollProgress = 0;
         }
-        
+
         // render
         p.fill(p5Program.configs.textColor);
         for (let i=0; i <= program.lineIndex; i++){
@@ -211,33 +236,36 @@ function sketch(p) {
             p.text(
                 textLine,
                 _(LEFT_PADDING),
-                _(50, true) - _(p5Program.configs.verticalSpacing * i)
+                - _(p5Program.configs.verticalSpacing * i)
             );
         }
 
         // done waiting? => next action
         if (--program.waitCountdown <= 0){
-
             // just moved to a new line?
             if (program.goingToNextLine){
                 program.goingToNextLine = false; // reset
                 program.lineIndex += program.scrollLinesAmount;
                 program.wordIndex = -1;
-                program.cameraX = 0;
+                program.horizontalScrollMark = 0;
+                program.zoomOutLevel = 0;
             }
 
             // still has more words?
             else if (program.wordIndex < currentLine.length - 1){
                 program.wordIndex++; // next word
-                const customeWaitAmount = currentLine[program.wordIndex].split("_").length-1;
-                const lettersAmount = currentLine[program.wordIndex].length;
+                const word = currentLine[program.wordIndex];
+                const customeWaitAmount = word.split("_").length-1;
+                const lettersAmount = word.length;
+                const enders = [",", ".", ";", "?", "!"];
+                const periodWait = (enders.includes(word[word.length - 1])) ? END_LINE_WAIT : 0;
                 const LDF = GET_LETTER_DURATION_FACTOR(p5Program.configs.textSpeed);
-                program.waitCountdown =  (4 + lettersAmount) * LDF + (customeWaitAmount * LDF * 10);
+                program.waitCountdown = periodWait + (4 + lettersAmount) * LDF + (customeWaitAmount * LDF * 10);
 
                 // extra wait if is last word in the line
                 if (program.wordIndex === currentLine.length - 1){
                     program.waitCountdown += END_LINE_WAIT;
-                    
+
                     // another extra wait if is last line
                     if (program.lineIndex === masterArr.length - 1) program.waitCountdown += END_LINE_WAIT*3;
                 }
@@ -269,13 +297,22 @@ function sketch(p) {
 
     function renderName(){
         let nameString = p5Program.configs.author;
-        if (nameString.length === 0) return;
-
-        p.textAlign(p.RIGHT, p.BOTTOM);
-        p.textSize(_(5));
-        p.fill(p5Program.configs.textColor);
-        p.text(nameString, _(100 - _PADDING_), _(100 - _PADDING_, true));
+        if (nameString.length !== 0) {
+            p.textAlign(p.RIGHT, p.BOTTOM);
+            p.textSize(_(5));
+            p.fill(p5Program.configs.textColor);
+            p.text(nameString, _(100 - _PADDING_), _(100 - _PADDING_, true));
+        }
+        if (p5Program.configs.mode) {
+            p.textSize(_(3.5));
+            const col = p.color(p5Program.configs.textColor);
+            col.setAlpha(180);
+            p.fill(col);
+            p.textAlign(p.LEFT, p.BOTTOM);
+            p.text("contentdrips.com", _(_PADDING_), _(100 - _PADDING_, true));
+        }
     }
+
 }
 
 // load fonts
