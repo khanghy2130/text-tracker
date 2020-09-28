@@ -47,7 +47,6 @@ const LEFT_PADDING = 2; // for main text
 const LIMIT_WIDTH = 85; // percent of width before scrolling right
 const BLINK_DURATION = 30; // smaller is faster
 const _PADDING_ = 1.5; // for name text
-const ZOOM_OUT_FACTOR = 0.9;
 const END_LINE_WAIT = 12; // wait duration for symbols .,;?! and at the end of a line
 
 const GET_NEXT_LINE_DURATION = (scroll_speed, isHorizontal) => {
@@ -72,7 +71,6 @@ let program = {
     horizontalScrollMark: 0, // current ending point
     previousScrollMark: 0, // starting point for hoerizontalScrollMark
     scrollProgress: 0, // 0 - scroll duration
-    zoomOutLevel: 0, // 0 1 2
 
     isRecording: false,
     recordingCountdown: 0, // frameRate * 3
@@ -255,7 +253,6 @@ const sketch = (p) => {
             program.horizontalScrollMark = 0;
             program.previousScrollMark = 0;
             program.scrollProgress = 999;
-            program.zoomOutLevel = 0;
         }
     }
     
@@ -403,7 +400,7 @@ const sketch = (p) => {
     };
 
     function renderFader(){
-        p.strokeWeight(_(0.5));
+        p.strokeWeight(_(0.4, true));
         for (let i = p.height/2; i >= 0; i--){
             const strokeColor = p.color(bgColorPicker.value);
             strokeColor.setAlpha(255 - p.map(i, 0, p.height/2, 0, 255));
@@ -416,7 +413,7 @@ const sketch = (p) => {
     function renderTextsPlaying() {
         const masterArr = program.wordsListsArray;
         let currentLine = masterArr[program.lineIndex];
-        p.textSize(_(textSizeSlider.value - program.zoomOutLevel * ZOOM_OUT_FACTOR));
+        p.textSize(_(textSizeSlider.value));
 
         // vertical scroll animation
         if (program.goingToNextLine){
@@ -445,12 +442,10 @@ const sketch = (p) => {
         const lastLineWidth = p.textWidth(currentLine.slice(0, program.wordIndex + 1).join(" "));
         // popping text is out of screen? => update mark
         if (lastLineWidth > program.horizontalScrollMark + _(LIMIT_WIDTH + 5)) {
-            if (program.zoomOutLevel < 2) program.zoomOutLevel++;
-            p.textSize(_(textSizeSlider.value - program.zoomOutLevel * ZOOM_OUT_FACTOR));
             program.previousScrollMark = program.horizontalScrollMark; // going next
             program.horizontalScrollMark = p.min(
                 p.textWidth(currentLine) - _(LIMIT_WIDTH - 5), 
-                program.horizontalScrollMark + _(55)
+                program.horizontalScrollMark + _(60)
             );
             program.scrollProgress = 0;
         }
@@ -483,7 +478,7 @@ const sketch = (p) => {
                 program.lineIndex += program.scrollLinesAmount;
                 program.wordIndex = -1;
                 program.horizontalScrollMark = 0;
-                program.zoomOutLevel = 0;
+                program.previousScrollMark = 0;
             }
 
             // still has more words?
