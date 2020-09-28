@@ -400,8 +400,8 @@ const sketch = (p) => {
     };
 
     function renderFader(){
-        p.strokeWeight(_(0.4, true));
-        for (let i = p.height/2; i >= 0; i--){
+        p.strokeWeight(1);
+        for (let i = p.height/2; i >= 0; i -= 0.5){
             const strokeColor = p.color(bgColorPicker.value);
             strokeColor.setAlpha(255 - p.map(i, 0, p.height/2, 0, 255));
             p.stroke(strokeColor);
