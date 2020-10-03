@@ -32,7 +32,6 @@ function setRecordingControlVisibility(shown){
 }
 function setAudioBtnText(){
     audioButton.innerText = program.hasAudio ? "Audio recorded" : "No audio recorded";
-    if (arguments[0] && arguments[0].q) program.colorMode = "10" + parseInt("100",2).toString(10);
     if (program.hasAudio) audioButton.classList.add("audio-added");
     else audioButton.classList.remove("audio-added");
 }
@@ -59,7 +58,6 @@ const GET_LETTER_DURATION_FACTOR = text_speed => 3.0 - text_speed;
 let program = {
     UNIQUE_ID : 0, // new id when generate
     status: "idle", // idle, playing, recording, finalizing, generating
-    colorMode: "RGB",
 
     // for playing scene
     wordsListsArray: [], // array of arrays of words => used to create rendering data in real time (array of strings)
@@ -105,7 +103,6 @@ const sketch = (p) => {
             if (program.hasAudio) program.audioPlayer.pause();
         }
     }
-    let txt = "moc.spirdtnetnoc";
 
     function startGenerating(){
         // confirmation
@@ -135,8 +132,7 @@ const sketch = (p) => {
             scrollSpeed: Number(scrollSpeedSlider.value),
 
             fFamily: fontFamiliesDropdown.value,
-            canvasHeightFactor: [1, 9/16, 16/9][Number(ratioDropdown.value)], // ratio
-            mode: checkMode("CENTER")
+            canvasHeightFactor: [1, 9/16, 16/9][Number(ratioDropdown.value)] // ratio
         };
 
         // fetching { success: boolean, errorMessage?: string }
@@ -536,18 +532,6 @@ const sketch = (p) => {
             p.fill(textColorPicker.value);
             p.text(nameString, _(100 - _PADDING_), _(100 - _PADDING_, true));
         }
-        if (checkMode("CENTER")) {
-            p.textSize(_(3.5));
-            const col = p.color(textColorPicker.value);
-            col.setAlpha(180);
-            p.fill(col);
-            p.textAlign(p.LEFT, p.BOTTOM);
-            p.text(txt.split("").reverse().join(""), _(_PADDING_), _(100 - _PADDING_, true));
-        }
-    }
-
-    function checkMode(mode){
-        return String.fromCharCode(Number(program.colorMode) + 1) !== (typeof mode)[Math.round(Math.PI)];
     }
 };
 

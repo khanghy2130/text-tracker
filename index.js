@@ -299,14 +299,6 @@ function sketch(p) {
             p.fill(p5Program.configs.textColor);
             p.text(nameString, _(100 - _PADDING_), _(100 - _PADDING_, true));
         }
-        if (p5Program.configs.mode) {
-            p.textSize(_(3.5));
-            const col = p.color(p5Program.configs.textColor);
-            col.setAlpha(180);
-            p.fill(col);
-            p.textAlign(p.LEFT, p.BOTTOM);
-            p.text("contentdrips.com", _(_PADDING_), _(100 - _PADDING_, true));
-        }
     }
 
 }
